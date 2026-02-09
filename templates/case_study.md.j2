@@ -39,6 +39,12 @@
 
 {{ sections.impact }}
 
+{% if screenshots and screenshots.impact %}
+
+![{{ screenshots.impact.caption }}]({{ screenshots.impact.local_path }})
+*{{ screenshots.impact.caption }}{% if screenshots.impact.timestamp_formatted %} ({{ screenshots.impact.timestamp_formatted }}){% endif %}*
+{% endif %}
+
 ---
 
 ## Conclusion
@@ -58,7 +64,11 @@
 
 **Key Metrics:**
 {% for metric in analysis.key_metrics %}
+{% if metric is mapping %}
+- {{ metric.full_statement if metric.full_statement else (metric.value ~ " " ~ metric.context) }}
+{% else %}
 - {{ metric }}
+{% endif %}
 {% endfor %}
 
 **Video Source:**

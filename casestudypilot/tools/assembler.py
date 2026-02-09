@@ -85,8 +85,17 @@ def assemble_case_study(
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(rendered)
 
+    # Extract project names from analysis (handles both dict and string formats)
+    cncf_projects = analysis.get("cncf_projects", [])
+    project_names = []
+    for proj in cncf_projects:
+        if isinstance(proj, dict):
+            project_names.append(proj.get("name", str(proj)))
+        else:
+            project_names.append(str(proj))
+    
     return {
         "output_path": str(output_path),
         "company_name": context["company"],
-        "cncf_projects": analysis.get("cncf_projects", []),
+        "cncf_projects": project_names,
     }
