@@ -61,6 +61,9 @@ Key improvements:
 - **Zero downtime deployments** with automated health checks and rollback capabilities
 - **Standardized infrastructure** across all teams, reducing operational complexity
 
+![Performance improvements and key results](images/intuit/impact.jpg)
+*Performance improvements and key results (25:30)*
+
 The success of the initial cloud-native transformation established Kubernetes and GitOps as standard practices across Intuit's engineering organization.
 
 ---

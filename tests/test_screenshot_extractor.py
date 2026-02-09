@@ -7,6 +7,7 @@ import pytest
 
 from casestudypilot.tools.screenshot_extractor import (
     analyze_transcript_for_visual_moments,
+    analyze_transcript_for_metric_moments,
     select_optimal_timestamps,
     generate_screenshot_url,
     download_screenshot,
@@ -60,6 +61,59 @@ def test_analyze_transcript_no_visual_moments():
     assert len(moments) == 0
 
 
+def test_analyze_transcript_for_metric_moments():
+    """Test metric detection in transcript."""
+    transcript_segments = [
+        {"start": 100, "text": "We reduced deployment time by 50 percent"},
+        {"start": 200, "text": "This is just talking about general stuff"},
+        {"start": 300, "text": "We manage 10,000 pods across our clusters"},
+        {"start": 400, "text": "This achieved a 3x improvement in speed"},
+    ]
+
+    key_metrics = [
+        "50% reduction in deployment time",
+        "10,000 pods managed",
+        "3x increase in deployment frequency",
+    ]
+
+    moments = analyze_transcript_for_metric_moments(transcript_segments, key_metrics)
+
+    # Should detect 3 metric moments
+    assert len(moments) == 3
+
+    # Check timestamps
+    assert moments[0]["timestamp"] == 100
+    assert moments[1]["timestamp"] == 300
+    assert moments[2]["timestamp"] == 400
+
+    # Check that metrics were detected
+    assert any(
+        "50" in str(m.get("matched_metric", "")) or "50" in m["text"] for m in moments
+    )
+    assert any(
+        "10,000" in str(m.get("matched_metric", ""))
+        or "10000" in m["text"]
+        or "10,000" in m["text"]
+        for m in moments
+    )
+    assert any(
+        "3x" in str(m.get("matched_metric", "")) or "3x" in m["text"] for m in moments
+    )
+
+
+def test_analyze_transcript_no_metric_moments():
+    """Test when no metrics are detected."""
+    transcript_segments = [
+        {"start": 100, "text": "We had some problems"},
+        {"start": 200, "text": "Things were not working well"},
+    ]
+
+    key_metrics = ["50% reduction", "10,000 pods"]
+    moments = analyze_transcript_for_metric_moments(transcript_segments, key_metrics)
+
+    assert len(moments) == 0
+
+
 def test_select_optimal_timestamps_with_moments():
     """Test timestamp selection when visual moments exist."""
     visual_moments = [
@@ -85,21 +139,53 @@ def test_select_optimal_timestamps_with_moments():
 
     selected = select_optimal_timestamps(visual_moments, video_duration=1000)
 
-    # Should select 2 moments
-    assert len(selected) == 2
+    # Should select 3 moments (default: challenge, solution, impact)
+    assert len(selected) == 3
 
-    # Should have challenge and solution
+    # Should have challenge, solution, and impact
     sections = [s["section"] for s in selected]
     assert "challenge" in sections
     assert "solution" in sections
+    assert "impact" in sections
 
-    # Challenge should be from first half (timestamp < 500)
-    challenge = [s for s in selected if s["section"] == "challenge"][0]
-    assert challenge["timestamp"] < 500
 
-    # Solution should be from second half (timestamp >= 500)
-    solution = [s for s in selected if s["section"] == "solution"][0]
-    assert solution["timestamp"] >= 500
+def test_select_optimal_timestamps_with_metrics():
+    """Test timestamp selection prioritizes metrics for impact section."""
+    visual_moments = [
+        {
+            "timestamp": 200,
+            "score": 2,
+            "matched_phrases": ["as you can see"],
+            "text": "Visual content here",
+        }
+    ]
+
+    metric_moments = [
+        {
+            "timestamp": 900,
+            "score": 5,
+            "matched_metric": "50% reduction in deployment time",
+            "matched_patterns": [],
+            "text": "We achieved a 50% reduction in deployment time...",
+        }
+    ]
+
+    selected = select_optimal_timestamps(
+        visual_moments,
+        video_duration=1000,
+        target_sections=["challenge", "solution", "impact"],
+        metric_moments=metric_moments,
+    )
+
+    # Should select 3 moments
+    assert len(selected) == 3
+
+    # Impact section should use the metric moment
+    impact_moment = [m for m in selected if m["section"] == "impact"][0]
+    assert impact_moment["timestamp"] == 900
+    assert (
+        "metric" in impact_moment["reason"].lower() or "50%" in impact_moment["reason"]
+    )
 
 
 def test_select_optimal_timestamps_fallback():
@@ -108,14 +194,16 @@ def test_select_optimal_timestamps_fallback():
 
     selected = select_optimal_timestamps(visual_moments, video_duration=1000)
 
-    # Should still return 2 timestamps (25% and 60%)
-    assert len(selected) == 2
+    # Should still return 3 timestamps (strategic: 25%, 60%, 85%)
+    assert len(selected) == 3
     assert selected[0]["timestamp"] == 250  # 25% of 1000
     assert selected[1]["timestamp"] == 600  # 60% of 1000
+    assert selected[2]["timestamp"] == 850  # 85% of 1000
 
     # Should have fallback reasons
     assert "Strategic timestamp" in selected[0]["reason"]
     assert "Strategic timestamp" in selected[1]["reason"]
+    assert "Strategic timestamp" in selected[2]["reason"]
 
 
 def test_generate_screenshot_url():
@@ -199,6 +287,21 @@ def test_generate_caption_solution():
     assert "Kubernetes" in caption
 
 
+def test_generate_caption_with_matched_metric():
+    """Test caption generation when metric is matched."""
+    sections = {"impact": "The transformation delivered significant improvements."}
+    timestamp_info = {
+        "timestamp": 1200,
+        "reason": "Metric mentioned",
+        "matched_metric": "50% reduction in deployment time",
+    }
+
+    caption = generate_caption("impact", sections, timestamp_info)
+
+    # Should use the matched metric in caption
+    assert "50%" in caption or "reduction" in caption.lower()
+
+
 def test_generate_caption_fallback():
     """Test caption generation with no bold text."""
     sections = {"challenge": "Some regular text without any emphasis"}
@@ -219,4 +322,4 @@ def test_generate_caption_impact():
 
     caption = generate_caption("impact", sections, timestamp_info)
 
-    assert "improvement" in caption.lower() or "result" in caption.lower()
+    assert "50% reduction" in caption or "result" in caption.lower()
