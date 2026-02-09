@@ -27,7 +27,7 @@ Key challenges:
 - Manual configuration management prone to human error and drift
 
 
-![Traditional deployment pipeline challenges](case-studies/images/intuit/challenge.jpg)
+![Traditional deployment pipeline challenges](images/intuit/challenge.jpg)
 *Traditional deployment pipeline challenges (7:30)*
 
 ---
@@ -43,7 +43,7 @@ To implement [GitOps](https://glossary.cncf.io/gitops/) practices, the platform 
 The migration followed a phased approach, starting with non-critical services to validate the platform and build organizational expertise. Platform teams provided comprehensive documentation, training, and support to application teams throughout the transition.
 
 
-![Kubernetes implementation architecture](case-studies/images/intuit/solution.jpg)
+![Kubernetes implementation architecture](images/intuit/solution.jpg)
 *Kubernetes implementation architecture (18:00)*
 
 ---
