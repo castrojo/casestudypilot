@@ -7,7 +7,9 @@
 
 ## Overview
 
-[Intuit](https://www.intuit.com) is a global financial software company serving over 100 million customers worldwide with products including TurboTax, QuickBooks, and Mint. Operating in a highly regulated financial services industry, the company needed robust, scalable infrastructure to support rapid growth while maintaining strict security and compliance requirements.
+[Intuit](https://www.intuit.com) is a global financial software company serving over 100 million customers worldwide with products including TurboTax, QuickBooks, and Mint. 
+
+Operating in a highly regulated financial services industry, the company needed robust, scalable infrastructure to support rapid growth while maintaining strict security and compliance requirements.
 
 As Intuit's customer base expanded exponentially, engineering teams faced increasing pressure to deliver features faster without compromising reliability. The company's infrastructure needed to support thousands of [microservices](https://glossary.cncf.io/microservices-architecture/) across multiple data centers while enabling developer autonomy and velocity.
 
