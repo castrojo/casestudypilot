@@ -32,7 +32,11 @@ def fetch_transcript(video_id: str) -> Optional[List[Dict[str, Any]]]:
     """
     try:
         logger.info(f"Fetching transcript for video {video_id}")
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        # Use the new API (youtube-transcript-api >= 1.0.0)
+        api = YouTubeTranscriptApi()
+        transcript_obj = api.fetch(video_id)
+        # Convert to old format for compatibility
+        transcript = transcript_obj.to_raw_data()
         logger.info(f"Successfully fetched {len(transcript)} transcript segments")
         return transcript
     except Exception as e:
