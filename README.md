@@ -44,7 +44,7 @@ URL: https://www.youtube.com/watch?v=V6L-xOUdoRQ
 
 ### 1. Python CLI Tool: `casestudypilot`
 
-Four commands for data operations:
+Five commands for data operations:
 
 ```bash
 # Fetch video transcript (no auth required!)
@@ -53,8 +53,13 @@ casestudypilot youtube-data <url>
 # Verify company is CNCF end-user member
 casestudypilot verify-company "Company Name"
 
+# Extract and download screenshots from video
+casestudypilot extract-screenshots video.json analysis.json sections.json \
+  --download-dir case-studies/images/company/
+
 # Assemble case study from components
-casestudypilot assemble video.json analysis.json sections.json verification.json
+casestudypilot assemble video.json analysis.json sections.json verification.json \
+  --screenshots screenshots.json
 
 # Validate quality
 casestudypilot validate case-studies/company.md
@@ -89,6 +94,11 @@ Multi-factor scoring across:
 
 ## Documentation
 
+### For Users
+
+📝 **GitHub Issue Workflow:** `docs/GITHUB-ISSUE-WORKFLOW.md` - How to submit case study requests  
+🎬 **Quick Start:** Go to [Issues → New → Case Study Request](../../issues/new/choose)
+
 ### For Implementing Agents
 
 📘 **Start here:** `docs/CONSTRAINTS.md` - Critical approval policy  
@@ -96,6 +106,13 @@ Multi-factor scoring across:
 🔧 **Implementation:** `docs/IMPLEMENTATION-GUIDE.md` - Step-by-step tasks  
 🏗️ **Architecture:** `docs/API-KEY-DECISION.md` - Design rationale  
 📐 **Design:** `docs/plans/2026-02-09-design.md` - Original design document
+
+### Quick Start for Users
+
+1. Go to [Issues → New Issue](../../issues/new/choose)
+2. Select "🎬 Case Study Request"
+3. Paste YouTube URL from CNCF channel
+4. Submit - the agent handles the rest!
 
 ### Quick Start for Implementers
 
@@ -204,6 +221,7 @@ See `docs/CONSTRAINTS.md` for complete policy.
 │   ├── PLANNING.md                      # Specifications
 │   ├── IMPLEMENTATION-GUIDE.md          # Step-by-step tasks
 │   ├── API-KEY-DECISION.md              # Architecture decision
+│   ├── GITHUB-ISSUE-WORKFLOW.md         # Issue workflow docs
 │   └── plans/
 │       └── 2026-02-09-design.md         # Original design
 │
