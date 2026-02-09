@@ -31,12 +31,86 @@ URL: https://www.youtube.com/watch?v=V6L-xOUdoRQ
 - GitHub Copilot custom agent orchestrates entire workflow
 - Python CLI tools handle data operations
 - Agent skills handle AI processing
+- **Fail-fast validation** prevents hallucination at every step
 - Quality validation ensures high-quality output
 
 **No API Keys Required:**
 - Uses `youtube-transcript-api` for direct transcript access
 - No authentication needed for basic operation
 - See `docs/API-KEY-DECISION.md` for rationale
+
+---
+
+## Fail-Fast Validation Architecture
+
+The agent includes comprehensive validation to prevent hallucination and ensure data quality:
+
+### Validation Points
+
+1. **Transcript Quality** (Step 2)
+   - Ensures transcript exists and has sufficient content
+   - Minimum: 1,000 characters, 50 segments, 100 words
+   - Prevents the "empty transcript hallucination" bug
+
+2. **Company Identification** (Step 3)
+   - Validates company name is not generic placeholder
+   - Requires confidence >= 0.7 for automated extraction
+   - Detects: "Company", "Organization", "Unknown", etc.
+
+3. **Analysis Output** (Step 6)
+   - Verifies CNCF projects identified (minimum 1)
+   - Checks all required sections present with sufficient content
+   - Ensures minimum 100 characters per section
+
+4. **Metric Fabrication Detection** (Step 8.5)
+   - Cross-checks generated metrics against transcript
+   - Uses fuzzy matching to allow for rephrasing
+   - Flags metrics that don't appear in original content
+
+5. **Company Consistency Check** (Step 8.5)
+   - Prevents case studies about wrong company
+   - Detects if generated content mentions different company
+   - **Critical safeguard against "Spotify hallucination" bug**
+
+### Severity Levels
+
+- **CRITICAL**: Stops workflow immediately, posts error, closes issue
+  - Empty transcript, wrong company, no CNCF projects
+  
+- **WARNING**: Continues with degraded quality, logs warning
+  - Short transcript, only 1 project, possible fabricated metrics
+  
+- **INFO**: Informational only, no action needed
+  - All validations passed, high quality data
+
+### Manual Validation
+
+Run validation commands manually for testing/debugging:
+
+```bash
+# Validate transcript quality
+python -m casestudypilot validate-transcript video_data.json
+
+# Validate company name
+python -m casestudypilot validate-company "Intuit" "Video Title" --confidence 1.0
+
+# Validate analysis output
+python -m casestudypilot validate-analysis transcript_analysis.json
+
+# Detect fabricated metrics
+python -m casestudypilot validate-metrics case_study_sections.json video_data.json transcript_analysis.json
+
+# Check company consistency
+python -m casestudypilot validate-consistency case_study_sections.json video_data.json company_verification.json
+
+# Run all validations
+python -m casestudypilot validate-all video_data.json transcript_analysis.json case_study_sections.json company_verification.json
+```
+
+**Exit codes:**
+- `0`: PASS (all checks passed)
+- `1`: WARNING (has warnings, can continue)
+- `2`: CRITICAL (fatal errors, must stop)
 
 ---
 

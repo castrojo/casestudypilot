@@ -15,6 +15,14 @@ from casestudypilot.tools.validator import validate_case_study
 from casestudypilot.tools.screenshot_extractor import (
     extract_screenshots as extract_screenshots_fn,
 )
+from casestudypilot.validation import (
+    validate_transcript as validate_transcript_fn,
+    validate_company_name as validate_company_name_fn,
+    validate_analysis as validate_analysis_fn,
+    validate_metrics as validate_metrics_fn,
+    validate_company_consistency as validate_company_consistency_fn,
+    Severity,
+)
 
 app = typer.Typer(
     name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False
@@ -220,6 +228,379 @@ def validate(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
+
+
+@app.command(name="validate-transcript")
+def validate_transcript_cmd(
+    video_data: Path = typer.Argument(..., help="Video data JSON file"),
+):
+    """Validate transcript quality from video data file."""
+    try:
+        console.print(f"[cyan]Validating transcript from:[/cyan] {video_data}")
+
+        # Load video data
+        with open(video_data, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Validate transcript
+        result = validate_transcript_fn(
+            data.get("transcript", ""), data.get("transcript_segments", [])
+        )
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(
+                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
+                )
+                if check.details:
+                    console.print(f"    [dim]{check.details}[/dim]")
+
+        # Output JSON
+        output_json = result.to_dict()
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(output_json, indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)  # Critical failure
+        elif result.has_warnings():
+            sys.exit(1)  # Warnings
+        else:
+            sys.exit(0)  # Pass
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-company")
+def validate_company_cmd(
+    company_name: str = typer.Argument(..., help="Company name to validate"),
+    video_title: str = typer.Argument(..., help="Video title for context"),
+    confidence: float = typer.Option(
+        1.0, "--confidence", "-c", help="Extraction confidence score (0.0-1.0)"
+    ),
+):
+    """Validate extracted company name."""
+    try:
+        console.print(f"[cyan]Validating company name:[/cyan] {company_name}")
+
+        result = validate_company_name_fn(company_name, video_title, confidence)
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(
+                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
+                )
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)
+        elif result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-analysis")
+def validate_analysis_cmd(
+    analysis: Path = typer.Argument(..., help="Transcript analysis JSON file"),
+):
+    """Validate transcript analysis output."""
+    try:
+        console.print(f"[cyan]Validating analysis from:[/cyan] {analysis}")
+
+        # Load analysis
+        with open(analysis, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        result = validate_analysis_fn(data)
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(
+                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
+                )
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)
+        elif result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-metrics")
+def validate_metrics_cmd(
+    sections: Path = typer.Argument(..., help="Generated sections JSON file"),
+    video_data: Path = typer.Argument(..., help="Video data JSON file"),
+    analysis: Path = typer.Argument(..., help="Analysis JSON file"),
+):
+    """Validate metrics in generated content against transcript."""
+    try:
+        console.print("[cyan]Validating metrics for fabrication...[/cyan]")
+
+        # Load files
+        with open(sections, "r", encoding="utf-8") as f:
+            sections_data = json.load(f)
+        with open(video_data, "r", encoding="utf-8") as f:
+            video_data_json = json.load(f)
+        with open(analysis, "r", encoding="utf-8") as f:
+            analysis_data = json.load(f)
+
+        result = validate_metrics_fn(
+            sections_data, video_data_json.get("transcript", ""), analysis_data
+        )
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL METRICS VERIFIED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                console.print(f"  [yellow]⚠ {check.name}[/yellow]: {check.message}")
+            else:
+                console.print(f"  [green]✓ {check.name}[/green]: {check.message}")
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-consistency")
+def validate_consistency_cmd(
+    sections: Path = typer.Argument(..., help="Generated sections JSON file"),
+    video_data: Path = typer.Argument(..., help="Video data JSON file"),
+    verification: Path = typer.Argument(..., help="Company verification JSON file"),
+):
+    """Validate company consistency to prevent wrong company attribution."""
+    try:
+        console.print("[cyan]Validating company consistency...[/cyan]")
+
+        # Load files
+        with open(sections, "r", encoding="utf-8") as f:
+            sections_data = json.load(f)
+        with open(video_data, "r", encoding="utf-8") as f:
+            video_data_json = json.load(f)
+        with open(verification, "r", encoding="utf-8") as f:
+            verification_data = json.load(f)
+
+        expected_company = verification_data.get(
+            "matched_name", verification_data.get("query_name", "Unknown")
+        )
+
+        result = validate_company_consistency_fn(
+            expected_company, sections_data, video_data_json
+        )
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL: COMPANY MISMATCH DETECTED![/red bold]")
+            console.print("[red]This could be the Spotify hallucination bug![/red]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]COMPANY CONSISTENCY VERIFIED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(
+                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
+                )
+                if check.details:
+                    console.print(f"    [dim]{check.details}[/dim]")
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)
+        elif result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-all")
+def validate_all_cmd(
+    video_data: Path = typer.Argument(..., help="Video data JSON file"),
+    analysis: Path = typer.Argument(..., help="Analysis JSON file"),
+    sections: Path = typer.Argument(..., help="Sections JSON file"),
+    verification: Path = typer.Argument(..., help="Verification JSON file"),
+):
+    """Run all validations comprehensively."""
+    try:
+        console.print("[cyan bold]Running comprehensive validation...[/cyan bold]\n")
+
+        all_results = {}
+        has_critical = False
+        has_warnings = False
+
+        # 1. Validate transcript
+        console.print("[cyan]1. Validating transcript...[/cyan]")
+        with open(video_data, "r", encoding="utf-8") as f:
+            video_data_json = json.load(f)
+        transcript_result = validate_transcript_fn(
+            video_data_json.get("transcript", ""),
+            video_data_json.get("transcript_segments", []),
+        )
+        all_results["transcript"] = transcript_result.to_dict()
+        console.print(f"   Status: {transcript_result.status.value}\n")
+        if transcript_result.is_critical():
+            has_critical = True
+        elif transcript_result.has_warnings():
+            has_warnings = True
+
+        # 2. Validate analysis
+        console.print("[cyan]2. Validating analysis...[/cyan]")
+        with open(analysis, "r", encoding="utf-8") as f:
+            analysis_data = json.load(f)
+        analysis_result = validate_analysis_fn(analysis_data)
+        all_results["analysis"] = analysis_result.to_dict()
+        console.print(f"   Status: {analysis_result.status.value}\n")
+        if analysis_result.is_critical():
+            has_critical = True
+        elif analysis_result.has_warnings():
+            has_warnings = True
+
+        # 3. Validate metrics
+        console.print("[cyan]3. Validating metrics...[/cyan]")
+        with open(sections, "r", encoding="utf-8") as f:
+            sections_data = json.load(f)
+        metrics_result = validate_metrics_fn(
+            sections_data, video_data_json.get("transcript", ""), analysis_data
+        )
+        all_results["metrics"] = metrics_result.to_dict()
+        console.print(f"   Status: {metrics_result.status.value}\n")
+        if metrics_result.has_warnings():
+            has_warnings = True
+
+        # 4. Validate company consistency
+        console.print("[cyan]4. Validating company consistency...[/cyan]")
+        with open(verification, "r", encoding="utf-8") as f:
+            verification_data = json.load(f)
+        expected_company = verification_data.get(
+            "matched_name", verification_data.get("query_name", "Unknown")
+        )
+        consistency_result = validate_company_consistency_fn(
+            expected_company, sections_data, video_data_json
+        )
+        all_results["consistency"] = consistency_result.to_dict()
+        console.print(f"   Status: {consistency_result.status.value}\n")
+        if consistency_result.is_critical():
+            has_critical = True
+        elif consistency_result.has_warnings():
+            has_warnings = True
+
+        # Summary
+        console.print("[bold]VALIDATION SUMMARY[/bold]")
+        console.print("=" * 50)
+        if has_critical:
+            console.print("[red bold]❌ CRITICAL FAILURES DETECTED[/red bold]")
+            console.print("[red]Workflow should STOP immediately[/red]")
+        elif has_warnings:
+            console.print("[yellow bold]⚠️  WARNINGS DETECTED[/yellow bold]")
+            console.print("[yellow]Case study quality may be degraded[/yellow]")
+        else:
+            console.print("[green bold]✅ ALL VALIDATIONS PASSED[/green bold]")
+
+        # Output full JSON
+        console.print(f"\n[dim]Full validation results:[/dim]")
+        console.print(json.dumps(all_results, indent=2))
+
+        # Exit with appropriate code
+        if has_critical:
+            sys.exit(2)
+        elif has_warnings:
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
 
 
 def main():

@@ -4,6 +4,7 @@ import re
 import logging
 from typing import Dict, List, Any, Optional
 from youtube_transcript_api import YouTubeTranscriptApi
+from casestudypilot.validation import validate_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +73,14 @@ def extract_basic_metadata(url: str, video_id: str) -> Dict[str, Any]:
 
 
 def fetch_video_data(url: str, duration_hint: Optional[int] = None) -> Dict[str, Any]:
-    """Fetch complete video data including transcript.
+    """Fetch complete video data including transcript with validation.
 
     Args:
         url: YouTube video URL
         duration_hint: Optional duration in seconds if known (used as fallback)
 
     Returns:
-        Video metadata dict with transcript if available
+        Video metadata dict with transcript and validation results
     """
     video_id = extract_video_id(url)
     metadata = extract_basic_metadata(url, video_id)
@@ -108,5 +109,21 @@ def fetch_video_data(url: str, duration_hint: Optional[int] = None) -> Dict[str,
         metadata["transcript"] = ""
         metadata["transcript_segments"] = []
         logger.warning("No transcript or duration information available")
+
+    # Validate transcript quality
+    validation_result = validate_transcript(
+        metadata.get("transcript", ""), metadata.get("transcript_segments", [])
+    )
+    metadata["validation"] = validation_result.to_dict()
+
+    # Log validation results
+    if validation_result.is_critical():
+        logger.error(f"CRITICAL transcript validation failure for video {video_id}")
+        for check in validation_result.get_failed_checks():
+            logger.error(f"  - {check.name}: {check.message}")
+    elif validation_result.has_warnings():
+        logger.warning(f"Transcript validation warnings for video {video_id}")
+        for check in validation_result.get_failed_checks():
+            logger.warning(f"  - {check.name}: {check.message}")
 
     return metadata
