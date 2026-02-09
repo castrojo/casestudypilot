@@ -30,7 +30,7 @@ Key challenges:
 
 
 ![Traditional deployment pipeline challenges](images/intuit/challenge.jpg)
-*Traditional deployment pipeline challenges (7:30)*
+*Traditional deployment pipeline challenges (6:00)*
 
 ---
 
@@ -46,7 +46,7 @@ The migration followed a phased approach, starting with non-critical services to
 
 
 ![Kubernetes implementation architecture](images/intuit/solution.jpg)
-*Kubernetes implementation architecture (18:00)*
+*Kubernetes implementation architecture (15:00)*
 
 ---
 
@@ -64,7 +64,7 @@ Key improvements:
 - **Standardized infrastructure** across all teams, reducing operational complexity
 
 ![Performance improvements and key results](images/intuit/impact.jpg)
-*Performance improvements and key results (25:30)*
+*Performance improvements and key results (24:00)*
 
 The success of the initial cloud-native transformation established Kubernetes and GitOps as standard practices across Intuit's engineering organization.
 
