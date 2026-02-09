@@ -12,6 +12,9 @@ from casestudypilot.tools.youtube_client import fetch_video_data
 from casestudypilot.tools.company_verifier import verify_company as verify_company_fn
 from casestudypilot.tools.assembler import assemble_case_study
 from casestudypilot.tools.validator import validate_case_study
+from casestudypilot.tools.screenshot_extractor import (
+    extract_screenshots as extract_screenshots_fn,
+)
 
 app = typer.Typer(
     name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False
@@ -96,17 +99,62 @@ def assemble(
         "-o",
         help="Output markdown file path (auto-generated if not specified)",
     ),
+    screenshots: Optional[Path] = typer.Option(
+        None,
+        "--screenshots",
+        "-s",
+        help="Screenshots JSON file (optional)",
+    ),
 ):
     """Assemble case study from component JSON files."""
     try:
         console.print("[cyan]Assembling case study...[/cyan]")
         result = assemble_case_study(
-            video_data, analysis, sections, verification, output
+            video_data, analysis, sections, verification, output, screenshots
         )
 
         console.print(f"[green]✓ Case study assembled:[/green] {result['output_path']}")
         console.print(f"[dim]Company:[/dim] {result['company_name']}")
         console.print(f"[dim]CNCF Projects:[/dim] {', '.join(result['cncf_projects'])}")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+
+@app.command(name="extract-screenshots")
+def extract_screenshots_cmd(
+    video_data: Path = typer.Argument(..., help="Video data JSON file"),
+    analysis: Path = typer.Argument(..., help="Analysis JSON file"),
+    sections: Path = typer.Argument(..., help="Sections JSON file"),
+    download_dir: str = typer.Option(
+        ..., "--download-dir", "-d", help="Directory to download screenshots to"
+    ),
+    output: Path = typer.Option(
+        Path("screenshots.json"), "--output", "-o", help="Output JSON file path"
+    ),
+):
+    """Extract and download screenshots from video."""
+    try:
+        console.print("[cyan]Extracting screenshots...[/cyan]")
+        result = extract_screenshots_fn(
+            video_data, analysis, sections, output, Path(download_dir)
+        )
+
+        console.print(f"[green]✓ Screenshots extracted:[/green] {output}")
+        console.print(f"[dim]Company:[/dim] {result['company_slug']}")
+        console.print(f"[dim]Screenshots:[/dim] {len(result['screenshots'])}")
+
+        # Display screenshot details
+        for screenshot in result["screenshots"]:
+            section = screenshot["section"]
+            success = screenshot["download_success"]
+            status = "[green]✓[/green]" if success else "[red]✗[/red]"
+            console.print(f"  {status} {section.title()}: {screenshot['local_path']}")
+            if not success:
+                console.print(
+                    f"    [red]Error:[/red] {screenshot.get('download_error')}"
+                )
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")

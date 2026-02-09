@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
@@ -32,7 +32,8 @@ def assemble_case_study(
     analysis_path: Path,
     sections_path: Path,
     verification_path: Path,
-    output_path: Path = None,
+    output_path: Optional[Path] = None,
+    screenshots_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Assemble final case study from component JSON files."""
     # Load all JSON files
@@ -48,6 +49,13 @@ def assemble_case_study(
             f"(confidence: {verification.get('confidence', 0)})"
         )
 
+    # Load screenshots if provided
+    screenshots = None
+    if screenshots_path and screenshots_path.exists():
+        screenshots_data = load_json_file(screenshots_path)
+        # Convert list to dict keyed by section for easier template access
+        screenshots = {s["section"]: s for s in screenshots_data.get("screenshots", [])}
+
     # Merge context for template
     context = {
         "company": verification.get(
@@ -57,6 +65,7 @@ def assemble_case_study(
         "analysis": analysis,
         "sections": sections,
         "verification": verification,
+        "screenshots": screenshots,
     }
 
     # Render template
