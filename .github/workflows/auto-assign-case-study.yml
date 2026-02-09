@@ -1,0 +1,25 @@
+name: Auto-assign Case Study Agent
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  assign-agent:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'case-study')
+    
+    permissions:
+      issues: write
+    
+    steps:
+      - name: Invoke case-study-agent
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '@case-study-agent please generate this case study based on the information provided above.'
+            });
