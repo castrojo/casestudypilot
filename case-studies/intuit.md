@@ -28,7 +28,6 @@ Key challenges:
 - Lack of standardization across 50+ microservices managed by different teams
 - Manual configuration management prone to human error and drift
 
-
 ![Traditional deployment pipeline challenges](images/intuit/challenge.jpg)
 *Traditional deployment pipeline challenges (6:00)*
 
@@ -43,7 +42,6 @@ To implement [GitOps](https://glossary.cncf.io/gitops/) practices, the platform 
 **[Helm](https://helm.sh)** charts standardized package management across the organization, allowing teams to share configurations and best practices. The platform team created a library of reusable Helm charts that encoded organizational standards and best practices, accelerating service deployment while ensuring consistency.
 
 The migration followed a phased approach, starting with non-critical services to validate the platform and build organizational expertise. Platform teams provided comprehensive documentation, training, and support to application teams throughout the transition.
-
 
 ![Kubernetes implementation architecture](images/intuit/solution.jpg)
 *Kubernetes implementation architecture (15:00)*
