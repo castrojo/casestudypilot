@@ -1,0 +1,59 @@
+# {{ company }} Case Study
+
+> **Source:** [{{ video.title }}]({{ video.url }})  
+> **Duration:** {{ video.duration_formatted }}
+
+---
+
+## Overview
+
+{{ sections.overview }}
+
+---
+
+## Challenge
+
+{{ sections.challenge }}
+
+---
+
+## Solution
+
+{{ sections.solution }}
+
+---
+
+## Impact
+
+{{ sections.impact }}
+
+---
+
+## Conclusion
+
+{{ sections.conclusion }}
+
+---
+
+## Metadata
+
+**Company:** {{ company }}
+
+**CNCF Projects Used:**
+{% for project in analysis.cncf_projects %}
+- **{{ project.name }}**: {{ project.usage_context }}
+{% endfor %}
+
+**Key Metrics:**
+{% for metric in analysis.key_metrics %}
+- {{ metric }}
+{% endfor %}
+
+**Video Source:**
+- **Title:** {{ video.title }}
+- **URL:** {{ video.url }}
+- **Duration:** {{ video.duration_formatted }}
+
+---
+
+*This case study was automatically generated from the video interview.*
