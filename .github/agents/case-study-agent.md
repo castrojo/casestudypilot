@@ -18,7 +18,7 @@ Transform YouTube video URLs into publication-ready case studies by:
 5. Extracting contextual screenshots
 6. Generating polished markdown
 
-## Workflow (13 Steps)
+## Workflow (14 Steps with Validation)
 
 When assigned to an issue containing a YouTube URL, follow these steps exactly:
 
