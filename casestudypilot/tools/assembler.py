@@ -86,12 +86,25 @@ def assemble_case_study(
         f.write(rendered)
 
     # Extract project names from analysis (handles both dict and string formats)
+    # Note: CNCF projects may be in dict format (with name/usage_context)
+    # or simple string format from older analyses
     cncf_projects = analysis.get("cncf_projects", [])
     project_names = []
     for proj in cncf_projects:
         if isinstance(proj, dict):
-            project_names.append(proj.get("name", str(proj)))
+            # Dict format: extract name field
+            if "name" not in proj:
+                # Log warning for malformed data but continue gracefully
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"CNCF project dict missing 'name' field: {proj}")
+                # Use first available value as fallback
+                name = next((v for k, v in proj.items() if isinstance(v, str)), "Unknown")
+                project_names.append(name)
+            else:
+                project_names.append(proj["name"])
         else:
+            # String format: use directly
             project_names.append(str(proj))
     
     return {

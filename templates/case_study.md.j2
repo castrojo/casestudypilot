@@ -64,6 +64,8 @@
 
 **Key Metrics:**
 {% for metric in analysis.key_metrics %}
+{# Note: Metrics support both dict format (with full_statement, value, context)
+   and simple string format for backward compatibility #}
 {% if metric is mapping %}
 - {{ metric.full_statement if metric.full_statement else (metric.value ~ " " ~ metric.context) }}
 {% else %}

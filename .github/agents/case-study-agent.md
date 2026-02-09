@@ -126,6 +126,7 @@ python -m casestudypilot assemble video_data.json transcript_analysis.json case_
 - Creates final markdown in `case-studies/<company>.md`
 - Embeds 3 screenshots with captions
 - Includes all metadata and hyperlinks
+- **Note:** `--screenshots` parameter is optional; if omitted or if screenshot extraction failed, case study will be generated without images
 
 ### Step 10: Validate Quality
 ```bash
