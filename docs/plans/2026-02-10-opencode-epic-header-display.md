@@ -14,10 +14,17 @@
 
 ## Problem Analysis
 
+**Investigation Results:**
+- Commit 89779e3 in powerlevel repo mentions `lib/epic-detector.js` and `lib/session-title-updater.js`
+- These files were documented in the commit message but **never actually added to the repository**
+- The epic header display feature was planned but never implemented
+- Current powerlevel plugin only handles epic syncing to GitHub, not context display
+
 **Current State:**
 - Plan files have `**Epic Issue:** #17` references (line 3 in people-presenter-agent plan)
-- Powerlevel plugin exists but only syncs epics to GitHub
+- Powerlevel plugin exists but only syncs epics to GitHub  
 - OpenCode TUI header bar has no mechanism to detect/display current epic context
+- The implementation in commit 89779e3 exists in git history but was never applied
 
 **Expected Behavior:**
 - When working in `/var/home/jorge/src/casestudypilot`
