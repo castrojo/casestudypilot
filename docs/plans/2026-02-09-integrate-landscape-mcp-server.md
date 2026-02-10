@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.11+, MCP Python SDK (mcp), Docker (landscape-mcp-server), existing casestudypilot CLI architecture
 
+**Epic Issue:** #20
+
 ---
 
 ## Background: Current vs. Target Architecture
