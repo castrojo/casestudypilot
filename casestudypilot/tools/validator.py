@@ -3,14 +3,16 @@
 import re
 from pathlib import Path
 from typing import Dict, List, Any
+from casestudypilot.validation import validate_case_study_format, Severity
 
 
 # Quality scoring weights
 WEIGHTS = {
-    "structure": 0.30,
-    "content_depth": 0.40,
-    "cncf_mentions": 0.20,
+    "structure": 0.25,
+    "content_depth": 0.35,
+    "cncf_mentions": 0.15,
     "formatting": 0.10,
+    "format_compliance": 0.15,  # New: image paths and links
 }
 
 # Required sections
@@ -175,8 +177,38 @@ def validate_formatting(content: str) -> Dict[str, Any]:
     return {"score": score, "issues": issues, "passed": len(issues) <= 1}
 
 
+def validate_format_compliance(file_path: Path) -> Dict[str, Any]:
+    """Validate image paths and clickable timestamp links."""
+    result = validate_case_study_format(str(file_path))
+
+    # Convert validation result to dict format matching other validators
+    issues = []
+    for check in result.get_failed_checks():
+        if check.message:
+            issues.append(check.message)
+
+    # Score: 1.0 if all pass, 0.5 if warnings, 0.0 if critical
+    if result.status == Severity.PASS:
+        score = 1.0
+    elif result.status == Severity.WARNING:
+        score = 0.5
+    else:  # CRITICAL
+        score = 0.0
+
+    return {
+        "score": score,
+        "issues": issues,
+        "passed": result.status == Severity.PASS,
+        "validation_details": result.to_dict(),
+    }
+
+
 def calculate_quality_score(
-    structure: Dict, content_depth: Dict, cncf_mentions: Dict, formatting: Dict
+    structure: Dict,
+    content_depth: Dict,
+    cncf_mentions: Dict,
+    formatting: Dict,
+    format_compliance: Dict,
 ) -> float:
     """Calculate overall quality score."""
     score = (
@@ -184,12 +216,17 @@ def calculate_quality_score(
         + content_depth["score"] * WEIGHTS["content_depth"]
         + cncf_mentions["score"] * WEIGHTS["cncf_mentions"]
         + formatting["score"] * WEIGHTS["formatting"]
+        + format_compliance["score"] * WEIGHTS["format_compliance"]
     )
     return round(score, 2)
 
 
 def generate_warnings(
-    structure: Dict, content_depth: Dict, cncf_mentions: Dict, formatting: Dict
+    structure: Dict,
+    content_depth: Dict,
+    cncf_mentions: Dict,
+    formatting: Dict,
+    format_compliance: Dict,
 ) -> List[str]:
     """Generate warning messages."""
     warnings = []
@@ -208,6 +245,9 @@ def generate_warnings(
     if not formatting["passed"]:
         warnings.extend(formatting["issues"])
 
+    if not format_compliance["passed"]:
+        warnings.extend(format_compliance["issues"])
+
     return warnings
 
 
@@ -221,14 +261,17 @@ def validate_case_study(file_path: Path, threshold: float = 0.60) -> Dict[str, A
     content_depth = validate_content_depth(sections)
     cncf_mentions = validate_cncf_mentions(content)
     formatting = validate_formatting(content)
+    format_compliance = validate_format_compliance(file_path)
 
     # Calculate overall score
     quality_score = calculate_quality_score(
-        structure, content_depth, cncf_mentions, formatting
+        structure, content_depth, cncf_mentions, formatting, format_compliance
     )
 
     # Generate warnings
-    warnings = generate_warnings(structure, content_depth, cncf_mentions, formatting)
+    warnings = generate_warnings(
+        structure, content_depth, cncf_mentions, formatting, format_compliance
+    )
 
     # Determine if passes threshold
     passes = quality_score >= threshold
@@ -243,5 +286,6 @@ def validate_case_study(file_path: Path, threshold: float = 0.60) -> Dict[str, A
             "content_depth": content_depth,
             "cncf_mentions": cncf_mentions,
             "formatting": formatting,
+            "format_compliance": format_compliance,
         },
     }

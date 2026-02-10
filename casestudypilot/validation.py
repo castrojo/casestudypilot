@@ -442,6 +442,160 @@ def validate_metrics(
     return ValidationResult(status=status, checks=checks)
 
 
+def validate_case_study_format(case_study_path: str) -> ValidationResult:
+    """Validate case study markdown formatting and links.
+
+    Args:
+        case_study_path: Path to generated case study markdown file
+
+    Returns:
+        ValidationResult with CRITICAL if formatting issues detected
+    """
+    checks = []
+
+    # Read the case study file
+    try:
+        with open(case_study_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        checks.append(
+            ValidationCheck(
+                name="file_exists",
+                passed=False,
+                severity=Severity.CRITICAL,
+                message=f"Case study file not found: {case_study_path}",
+            )
+        )
+        return ValidationResult(status=Severity.CRITICAL, checks=checks)
+
+    checks.append(
+        ValidationCheck(
+            name="file_exists",
+            passed=True,
+            severity=Severity.INFO,
+            message="Case study file exists",
+        )
+    )
+
+    # Check 1: Image paths must be relative (not absolute from repo root)
+    # Pattern: ![...](<path>) where path starts with "case-studies/"
+    absolute_image_pattern = r"!\[.*?\]\(case-studies/images/"
+    absolute_images = re.findall(absolute_image_pattern, content)
+
+    if absolute_images:
+        checks.append(
+            ValidationCheck(
+                name="relative_image_paths",
+                passed=False,
+                severity=Severity.CRITICAL,
+                message=f"Found {len(absolute_images)} image(s) with absolute paths (case-studies/images/...). "
+                "Images must use relative paths (images/...) from case-studies/ directory.",
+                details={"absolute_paths_found": len(absolute_images)},
+            )
+        )
+    else:
+        checks.append(
+            ValidationCheck(
+                name="relative_image_paths",
+                passed=True,
+                severity=Severity.INFO,
+                message="All image paths are relative",
+            )
+        )
+
+    # Check 2: Screenshots must be clickable links to video timestamps
+    # Pattern: [![...](images/...)](video_url&t=XXXs)
+    clickable_screenshot_pattern = (
+        r"\[!\[.*?\]\(images/.*?\)\]\(https://www\.youtube\.com/watch\?v=.*?&t=\d+s\)"
+    )
+    clickable_screenshots = re.findall(clickable_screenshot_pattern, content)
+
+    # Also check for non-clickable images in case-studies/ (screenshots)
+    # Pattern matches: ![...](images/...) or ![...](case-studies/images/...)
+    # But NOT [![...](images/...)](link) (which are clickable)
+    all_image_lines = []
+    for line in content.split("\n"):
+        # Match lines with images but filter out clickable ones
+        if re.search(r"!\[.*?\]\((case-studies/)?images/", line):
+            # Skip if it's a clickable link
+            if not re.search(
+                r"\[!\[.*?\]\((case-studies/)?images/.*?\)\]\(https?://", line
+            ):
+                all_image_lines.append(line.strip())
+
+    if all_image_lines:
+        checks.append(
+            ValidationCheck(
+                name="clickable_screenshot_links",
+                passed=False,
+                severity=Severity.CRITICAL,
+                message=f"Found {len(all_image_lines)} non-clickable screenshot(s). "
+                "Screenshots must be wrapped in clickable links to video timestamps: [![...](image)](video&t=XXs)",
+                details={"non_clickable_count": len(all_image_lines)},
+            )
+        )
+    elif clickable_screenshots:
+        checks.append(
+            ValidationCheck(
+                name="clickable_screenshot_links",
+                passed=True,
+                severity=Severity.INFO,
+                message=f"All {len(clickable_screenshots)} screenshot(s) are clickable links to video timestamps",
+                details={"clickable_count": len(clickable_screenshots)},
+            )
+        )
+    else:
+        # No screenshots found - this is OK if screenshots weren't generated
+        checks.append(
+            ValidationCheck(
+                name="clickable_screenshot_links",
+                passed=True,
+                severity=Severity.INFO,
+                message="No screenshots found in case study",
+            )
+        )
+
+    # Check 3: Timestamp format validation (if clickable links exist)
+    if clickable_screenshots:
+        # Extract all timestamp values
+        timestamp_pattern = r"&t=(\d+)s"
+        timestamps = [int(t) for t in re.findall(timestamp_pattern, content)]
+
+        if all(t >= 0 for t in timestamps):
+            checks.append(
+                ValidationCheck(
+                    name="valid_timestamps",
+                    passed=True,
+                    severity=Severity.INFO,
+                    message=f"All {len(timestamps)} timestamp(s) are valid",
+                    details={"timestamps": timestamps},
+                )
+            )
+        else:
+            invalid = [t for t in timestamps if t < 0]
+            checks.append(
+                ValidationCheck(
+                    name="valid_timestamps",
+                    passed=False,
+                    severity=Severity.CRITICAL,
+                    message=f"Found {len(invalid)} invalid timestamp(s): {invalid}",
+                    details={"invalid_timestamps": invalid},
+                )
+            )
+
+    # Determine overall status
+    status = Severity.PASS
+    for check in checks:
+        if not check.passed:
+            if check.severity == Severity.CRITICAL:
+                status = Severity.CRITICAL
+                break
+            elif check.severity == Severity.WARNING and status == Severity.PASS:
+                status = Severity.WARNING
+
+    return ValidationResult(status=status, checks=checks)
+
+
 def validate_company_consistency(
     expected_company: str,
     generated_sections: Dict[str, Any],

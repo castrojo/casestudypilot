@@ -39,8 +39,16 @@ def create_jinja_env() -> Environment:
             project_name, f"https://{project_name.lower().replace(' ', '')}.io"
         )
 
+    # Add custom filter for relative paths
+    def relative_path_filter(path: str) -> str:
+        """Convert absolute path to relative from case-studies/ directory."""
+        if path.startswith("case-studies/"):
+            return path.replace("case-studies/", "", 1)
+        return path
+
     env.filters["add_links"] = add_links_filter
     env.filters["project_url"] = project_url_filter
+    env.filters["relative_path"] = relative_path_filter
 
     return env
 

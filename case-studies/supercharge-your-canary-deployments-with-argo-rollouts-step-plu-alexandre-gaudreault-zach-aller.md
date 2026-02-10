@@ -27,7 +27,7 @@ Key challenges:
 - Maintenance burden concentrated on core Argo Rollouts maintainers rather than distributed across community
 
 
-![Before: at Intuit we have 24,000 rollout resources with a combined 85,000 steps](case-studies/images/supercharge-argo-rollouts/challenge.jpg)
+[![Before: at Intuit we have 24,000 rollout resources with a combined 85,000 steps](images/supercharge-argo-rollouts/challenge.jpg)](https://www.youtube.com/watch?v=7r-rjA4TLhI&t=109s)
 *Before: at Intuit we have 24,000 rollout resources with a combined 85,000 steps (1:49)*
 
 ---
@@ -45,7 +45,7 @@ A critical operational feature is the disable capability. When external dependen
 Intuit also integrated the plugin system with their existing **[Kubernetes](https://kubernetes.io)**, **[Istio](https://istio.io)**, **[Prometheus](https://prometheus.io)**, and **[Datadog](https://www.datadoghq.com)** infrastructure, creating comprehensive [progressive delivery](https://glossary.cncf.io/progressive-delivery/) workflows. The plugin interface proved so intuitive that a working demo implementation was created using AI in just three prompts.
 
 
-![Argo Rollouts implementation architecture](case-studies/images/supercharge-argo-rollouts/solution.jpg)
+[![Argo Rollouts implementation architecture](images/supercharge-argo-rollouts/solution.jpg)](https://www.youtube.com/watch?v=7r-rjA4TLhI&t=1063s)
 *Argo Rollouts implementation architecture (17:43)*
 
 ---
@@ -66,7 +66,7 @@ Key improvements:
 The simplicity of the plugin interface enabled rapid adoption and experimentation. Teams implemented use cases including canary gating, cross-cluster deployment synchronization, custom notifications during rollouts, and region-specific traffic routing patterns. The plugin system's ease of use was demonstrated when a fully functional demo plugin was created in just three AI prompts, showcasing how accessible the technology is for teams wanting to extend their deployment capabilities.
 
 
-![Performance improvements and key results](case-studies/images/supercharge-argo-rollouts/impact.jpg)
+[![Performance improvements and key results](images/supercharge-argo-rollouts/impact.jpg)](https://www.youtube.com/watch?v=7r-rjA4TLhI&t=1295s)
 *Performance improvements and key results (21:35)*
 
 ---

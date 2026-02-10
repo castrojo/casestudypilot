@@ -1,12 +1,16 @@
 """Unit tests for validation framework."""
 
 import pytest
+import tempfile
+import os
+from pathlib import Path
 from casestudypilot.validation import (
     validate_transcript,
     validate_company_name,
     validate_analysis,
     validate_metrics,
     validate_company_consistency,
+    validate_case_study_format,
     Severity,
 )
 
@@ -534,3 +538,215 @@ class TestValidationResult:
         assert data["checks"][0]["passed"] is True
         assert data["checks"][0]["details"] == {"count": 5}
         assert data["checks"][1]["message"] == "Warning message"
+
+
+class TestValidateCaseStudyFormat:
+    """Tests for case study format validation (images and links)."""
+
+    def test_relative_image_paths_pass(self):
+        """Test case study with relative image paths passes."""
+        content = """# Company Case Study
+
+## Challenge
+
+[![Screenshot](images/company/challenge.jpg)](https://www.youtube.com/watch?v=ABC123&t=109s)
+*Challenge screenshot (1:49)*
+
+## Solution
+
+[![Screenshot](images/company/solution.jpg)](https://www.youtube.com/watch?v=ABC123&t=500s)
+*Solution screenshot (8:20)*
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = validate_case_study_format(temp_path)
+
+            assert result.status == Severity.PASS
+            assert not result.is_critical()
+            # Check that relative_image_paths check passed
+            assert any(
+                c.name == "relative_image_paths" and c.passed for c in result.checks
+            )
+        finally:
+            os.unlink(temp_path)
+
+    def test_absolute_image_paths_fail(self):
+        """Test case study with absolute image paths fails critically."""
+        content = """# Company Case Study
+
+## Challenge
+
+[![Screenshot](case-studies/images/company/challenge.jpg)](https://www.youtube.com/watch?v=ABC123&t=109s)
+*Challenge screenshot (1:49)*
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = validate_case_study_format(temp_path)
+
+            assert result.status == Severity.CRITICAL
+            assert result.is_critical()
+            # Check that relative_image_paths check failed
+            failed = result.get_failed_checks()
+            assert any(
+                c.name == "relative_image_paths"
+                and "absolute paths" in c.message.lower()
+                for c in failed
+                if c.message
+            )
+        finally:
+            os.unlink(temp_path)
+
+    def test_clickable_screenshot_links_pass(self):
+        """Test case study with clickable screenshot links passes."""
+        content = """# Company Case Study
+
+## Challenge
+
+[![Screenshot caption](images/company/challenge.jpg)](https://www.youtube.com/watch?v=ABC123&t=109s)
+*Challenge screenshot (1:49)*
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = validate_case_study_format(temp_path)
+
+            assert result.status == Severity.PASS
+            # Check that clickable_screenshot_links check passed
+            assert any(
+                c.name == "clickable_screenshot_links" and c.passed
+                for c in result.checks
+            )
+        finally:
+            os.unlink(temp_path)
+
+    def test_non_clickable_screenshots_fail(self):
+        """Test case study with non-clickable screenshots fails critically."""
+        content = """# Company Case Study
+
+## Challenge
+
+![Screenshot caption](images/company/challenge.jpg)
+*Challenge screenshot*
+
+Some text here.
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = validate_case_study_format(temp_path)
+
+            assert result.status == Severity.CRITICAL
+            assert result.is_critical()
+            # Check that clickable_screenshot_links check failed
+            failed = result.get_failed_checks()
+            assert any(
+                c.name == "clickable_screenshot_links"
+                and "non-clickable" in c.message.lower()
+                for c in failed
+                if c.message
+            )
+        finally:
+            os.unlink(temp_path)
+
+    def test_valid_timestamps_pass(self):
+        """Test case study with valid timestamps passes."""
+        content = """# Company Case Study
+
+[![Screenshot 1](images/company/challenge.jpg)](https://www.youtube.com/watch?v=ABC123&t=0s)
+[![Screenshot 2](images/company/solution.jpg)](https://www.youtube.com/watch?v=ABC123&t=100s)
+[![Screenshot 3](images/company/impact.jpg)](https://www.youtube.com/watch?v=ABC123&t=999s)
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = validate_case_study_format(temp_path)
+
+            assert result.status == Severity.PASS
+            # Check that valid_timestamps check passed
+            assert any(c.name == "valid_timestamps" and c.passed for c in result.checks)
+        finally:
+            os.unlink(temp_path)
+
+    def test_no_screenshots_passes(self):
+        """Test case study without screenshots passes (acceptable)."""
+        content = """# Company Case Study
+
+## Challenge
+
+The company faced many challenges with their infrastructure.
+
+## Solution
+
+They implemented cloud native technologies.
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = validate_case_study_format(temp_path)
+
+            assert result.status == Severity.PASS
+            # Check that it handled no screenshots gracefully
+            assert any(
+                c.name == "clickable_screenshot_links"
+                and "no screenshots" in c.message.lower()
+                for c in result.checks
+                if c.message
+            )
+        finally:
+            os.unlink(temp_path)
+
+    def test_missing_file_fails(self):
+        """Test validation of non-existent file fails critically."""
+        result = validate_case_study_format("/nonexistent/path/to/file.md")
+
+        assert result.status == Severity.CRITICAL
+        assert result.is_critical()
+        assert any(
+            c.name == "file_exists" and "not found" in c.message.lower()
+            for c in result.get_failed_checks()
+            if c.message
+        )
+
+    def test_combined_issues_multiple_failures(self):
+        """Test case study with multiple format issues reports all failures."""
+        content = """# Company Case Study
+
+## Challenge
+
+![Not clickable](case-studies/images/company/challenge.jpg)
+*Should be clickable and relative*
+
+## Solution
+
+Some content here.
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = validate_case_study_format(temp_path)
+
+            assert result.status == Severity.CRITICAL
+            failed = result.get_failed_checks()
+
+            # Should have both failures
+            assert len(failed) >= 2
+            assert any(c.name == "relative_image_paths" for c in failed)
+            assert any(c.name == "clickable_screenshot_links" for c in failed)
+        finally:
+            os.unlink(temp_path)

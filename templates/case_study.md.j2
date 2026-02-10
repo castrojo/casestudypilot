@@ -17,7 +17,7 @@
 
 {% if screenshots and screenshots.challenge %}
 
-![{{ screenshots.challenge.caption }}]({{ screenshots.challenge.local_path }})
+[![{{ screenshots.challenge.caption }}]({{ screenshots.challenge.local_path | relative_path }})]({{ video.url }}&t={{ screenshots.challenge.timestamp }}s)
 *{{ screenshots.challenge.caption }}{% if screenshots.challenge.timestamp_formatted %} ({{ screenshots.challenge.timestamp_formatted }}){% endif %}*
 {% endif %}
 
@@ -29,7 +29,7 @@
 
 {% if screenshots and screenshots.solution %}
 
-![{{ screenshots.solution.caption }}]({{ screenshots.solution.local_path }})
+[![{{ screenshots.solution.caption }}]({{ screenshots.solution.local_path | relative_path }})]({{ video.url }}&t={{ screenshots.solution.timestamp }}s)
 *{{ screenshots.solution.caption }}{% if screenshots.solution.timestamp_formatted %} ({{ screenshots.solution.timestamp_formatted }}){% endif %}*
 {% endif %}
 
@@ -41,7 +41,7 @@
 
 {% if screenshots and screenshots.impact %}
 
-![{{ screenshots.impact.caption }}]({{ screenshots.impact.local_path }})
+[![{{ screenshots.impact.caption }}]({{ screenshots.impact.local_path | relative_path }})]({{ video.url }}&t={{ screenshots.impact.timestamp }}s)
 *{{ screenshots.impact.caption }}{% if screenshots.impact.timestamp_formatted %} ({{ screenshots.impact.timestamp_formatted }}){% endif %}*
 {% endif %}
 
