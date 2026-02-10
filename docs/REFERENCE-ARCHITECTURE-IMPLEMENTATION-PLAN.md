@@ -2389,9 +2389,9 @@ Add comparison section showing when to generate case study vs. reference archite
 
 **Content:**
 ```yaml
-name: 📐 Reference Architecture Request
+name: Reference Architecture Request
 description: Request generation of a CNCF reference architecture from a video
-title: "[Reference Architecture] Company Name"
+title: ""
 labels: ["reference-architecture", "automation"]
 body:
   - type: markdown

@@ -218,7 +218,7 @@ Optionally include:
 
 **Example Issue:**
 ```markdown
-Title: [Reference Architecture] Acme Corp Cloud-Native Platform
+Title: Acme Corp Cloud-Native Platform
 
 **YouTube URL**: https://www.youtube.com/watch?v=VIDEO_ID
 

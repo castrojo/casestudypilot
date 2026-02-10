@@ -389,6 +389,47 @@ fi
 **Agent workflow requirement:**
 All agent workflows that interact with GitHub must include authentication checks in their pre-flight steps.
 
+### 6. Issue Template Standards
+
+**CRITICAL:** Issue templates must be professional and rely on labels, not title prefixes.
+
+**Issue Title Convention:**
+- ❌ **WRONG:** `title: "[Case Study] "` or `title: "[Epic] "`
+- ✅ **CORRECT:** `title: ""` (empty, user provides full title)
+
+**Why this matters:**
+- Labels already identify issue type (`case-study`, `reference-architecture`, `epic`)
+- Bracket prefixes are redundant and unprofessional
+- Agents discover issues via labels, not title parsing
+- Users should provide natural, descriptive titles
+
+**Template Standards:**
+```yaml
+name: Generate a Case Study
+description: Generate a business-focused case study from a YouTube video
+title: ""  # Empty - no bracket prefix
+labels: ["case-study", "automation"]
+```
+
+**Agent Discovery Pattern:**
+Agents find work by filtering issues with specific labels:
+```bash
+# Case study agent discovers work
+gh issue list --label "case-study" --state open
+
+# Reference architecture agent discovers work
+gh issue list --label "reference-architecture" --state open
+
+# Epic tracking
+gh issue list --label "epic" --state open
+```
+
+**Professional Communication:**
+- Remove emojis from template names and descriptions
+- Use concise, professional language
+- Focus on essential information only
+- Let labels handle categorization
+
 ## Operational Workflows
 
 ### Current Implementation: Case Study Generation

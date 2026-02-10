@@ -131,7 +131,7 @@ Before requesting, check that the video meets minimum requirements:
 ---
 name: Reference Architecture Request
 about: Generate a comprehensive reference architecture from a YouTube video
-title: "[Reference Architecture] Company Name - Short Description"
+title: ""
 labels: reference-architecture
 ---
 
@@ -852,7 +852,7 @@ spec:
 
 **Navigate to:** https://github.com/cncf/toc/issues/new
 
-**Title:** `[Reference Architecture] Company Cloud-Native Platform`
+**Title:** `Company Cloud-Native Platform`
 
 **Body:**
 ```markdown

@@ -22,16 +22,16 @@
 Create the GitHub issue template for organization requests:
 
 ```yaml
-name: 🏢 Organization Content Request
+name: Organization Content Request
 description: Generate case studies or reference architectures for all of an organization's CNCF talks
-title: "[Organization] "
+title: ""
 labels: ["automation", "epic", "organization"]
 assignees: []
 body:
   - type: markdown
     attributes:
       value: |
-        ## 🏢 Organization Content Generator
+        ## Organization Content Generator
         
         Generate publication-ready content from **all talks** by an organization on the CNCF YouTube channel.
         
@@ -626,10 +626,10 @@ if [ -f videos_to_create.txt ]; then
     
     # Create issue body using heredoc
     gh issue create \
-      --title "[Content Request] $VIDEO_TITLE" \
+      --title "$VIDEO_TITLE" \
       --label "automation,org/$ORG_LABEL,epic-$EPIC_NUMBER,$CONTENT_TYPE" \
       --body "$(cat <<EOF
-## 🤖 Auto-generated from Organization Epic
+## Auto-generated from Organization Epic
 
 This issue was automatically created by the organization search agent.
 
@@ -1140,16 +1140,16 @@ python -m casestudypilot search-organization "Intuit" --months 18
 **Step 2: Create Sub-Issues**
 
 Sub-issue #101:
-- Title: [Content Request] Intuit's Cloud Native Journey - KubeCon EU 2025
+- Title: Intuit's Cloud Native Journey - KubeCon EU 2025
 - Labels: `automation`, `org/intuit`, `epic-100`, `case-study`
 - Body: Auto-generated with video URL
 
 Sub-issue #102:
-- Title: [Content Request] How Intuit Uses Argo CD for GitOps
+- Title: How Intuit Uses Argo CD for GitOps
 - Labels: `automation`, `org/intuit`, `epic-100`, `case-study`
 
 Sub-issue #103:
-- Title: [Content Request] Intuit Inc Platform Evolution
+- Title: Intuit Inc Platform Evolution
 - Labels: `automation`, `org/intuit`, `epic-100`, `case-study`
 
 **Step 3: Update Epic**

@@ -152,8 +152,8 @@ The form-based interface guides users through:
 
 When user clicks "Submit new issue":
 - Issue is created with structured body
-- Labels `case-study` and `automation` are automatically applied
-- Title format: `[Case Study] <user-provided-title>`
+- Labels are automatically applied based on template
+- Title provided by user (no prefix needed, labels identify issue type)
 
 ### Step 4: Automatic Workflow Execution
 

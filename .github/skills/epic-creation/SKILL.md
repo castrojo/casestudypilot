@@ -117,7 +117,7 @@ EOF
 ```bash
 # Create the issue
 gh issue create \
-  --title "[Epic] $TITLE" \
+  --title "$TITLE" \
   --label "epic,planning" \
   --body "$(cat epic_body.md)"
 
