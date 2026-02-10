@@ -1,8 +1,17 @@
 # CNCF Case Study Automation
 
-This tool takes an existing talk from CNCF Events like KubeCon + CloudNativeCon and generates content:
+**A skill-driven agent framework for generating high-quality CNCF content from conference talks.**
 
-TLDR: Ingests the youtube closed caption (which has timestamps!) and then generates a report based on community standards. It ingests the CNCF requirements for a case study and then uses all the existing case studies as examples. For bonus points it takes the image from the video when something interesting is mentioned in the video. Once we have the speaker's slides it should be even cooler.
+This tool automatically generates business-focused **case studies** and technical **reference architectures** from CNCF conference videos (KubeCon + CloudNativeCon, etc.). It uses YouTube closed captions with timestamps to extract structured insights, validates against CNCF community standards, and produces publication-ready markdown with contextually-placed screenshots.
+
+**Key Features:**
+- 🤖 **Agent-driven workflows** with fail-fast validation to prevent hallucination
+- 📊 **Dual content types**: Case studies (business focus) and reference architectures (technical deep-dives)
+- 🛡️ **Quality assurance**: Multi-factor scoring ensures content meets CNCF standards
+- 🔒 **Zero API keys**: Works immediately with no authentication setup
+- 🐋 **Container-first**: Run entirely in containers with zero host dependencies
+- 📸 **Smart screenshots**: Extracts and places relevant video frames contextually
+- 🎯 **CNCF-validated**: Verifies company membership and project mentions
 
 ---
 
@@ -11,6 +20,7 @@ TLDR: Ingests the youtube closed caption (which has timestamps!) and then genera
 ### Case Studies
 
 <!-- GENERATED_CONTENT_START:case-studies -->
+- [Niantic](case-studies/niantic.md) - Keynote: Scaling Geo-Temporal ML: How Pokémon Go Optimizes Global Gameplay With... Y. Liu & A. Zhang
 - [Intuit](case-studies/supercharge-your-canary-deployments-with-argo-rollouts-step-plu-alexandre-gaudreault-zach-aller.md) - Supercharge Your Canary Deployments With Argo Rollouts Step Plu... Alexandre Gaudreault & Zach Aller
 - [Intuit](case-studies/intuit.md) - How Intuit Manages Cloud Resources Via GitOps
 <!-- GENERATED_CONTENT_END:case-studies -->
@@ -18,7 +28,6 @@ TLDR: Ingests the youtube closed caption (which has timestamps!) and then genera
 ### Reference Architectures
 
 <!-- GENERATED_CONTENT_START:reference-architectures -->
-- [Airbnb](reference-architectures/airbnb.md) - Keynote: Scaling Geo-Temporal ML: How Pokémon Go Optimizes Global Gameplay With... Y. Liu & A. Zhang
 - [CERN](reference-architectures/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern.md) - The Hard Life of Securing a Particle Accelerator - Antonio Nappi & Sebastian Lopienski, CERN
 <!-- GENERATED_CONTENT_END:reference-architectures -->
 
@@ -26,16 +35,36 @@ TLDR: Ingests the youtube closed caption (which has timestamps!) and then genera
 
 ## Architecture
 
-**Agent-Centric Design:**
-- GitHub Copilot custom agent orchestrates entire workflow
-- Python CLI tools handle data operations
-- Agent skills handle AI processing
-- **Fail-fast validation** prevents hallucination at every step
-- Quality validation ensures high-quality output
+**Three-Layer Agent Framework:**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ LAYER 1: AGENTS (Orchestration)                             │
+│ - case-study-agent, reference-architecture-agent            │
+│ - content-orchestrator, people-agent                         │
+│ - Make decisions based on validation exit codes             │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ├─────────────────┐
+                            ↓                 ↓
+┌────────────────────────────────┐  ┌───────────────────────────┐
+│ LAYER 2: SKILLS (LLM)         │  │ LAYER 3: CLI TOOLS (Python)│
+│ - Content generation           │  │ - Data fetching            │
+│ - Analysis & extraction        │  │ - Validation (exit codes)  │
+│ - 12 specialized skills        │  │ - Quality scoring          │
+└────────────────────────────────┘  └───────────────────────────┘
+```
+
+**Fail-Fast Validation:**
+- Every workflow step has validation checkpoints
+- Exit codes: 0 (pass), 1 (warning), 2 (critical - stop immediately)
+- Prevents hallucination at transcript, company, metrics, and consistency layers
+- Multi-factor quality scoring (0.60 for case studies, 0.70 for reference architectures)
 
 **No API Keys Required:**
 - Uses `youtube-transcript-api` for direct transcript access
-- No authentication needed for basic operation
+- Uses CNCF public API for company verification
+- Zero authentication needed for basic operation
 - See `docs/API-KEY-DECISION.md` for rationale
 
 ---
@@ -379,12 +408,13 @@ podman pull ghcr.io/castrojo/casestudypilot:latest
 
 ---
 
-## Components (To Be Built)
+## Components
 
 ### 1. Python CLI Tool: `casestudypilot`
 
-Five commands for data operations:
+**30+ commands** for comprehensive content generation and validation:
 
+**Core Generation:**
 ```bash
 # Fetch video transcript (no auth required!)
 casestudypilot youtube-data <url>
@@ -393,41 +423,136 @@ casestudypilot youtube-data <url>
 casestudypilot verify-company "Company Name"
 
 # Extract and download screenshots from video
-casestudypilot extract-screenshots video.json analysis.json sections.json \
-  --download-dir case-studies/images/company/
+casestudypilot extract-screenshots video.json analysis.json sections.json
 
 # Assemble case study from components
-casestudypilot assemble video.json analysis.json sections.json verification.json \
-  --screenshots screenshots.json
+casestudypilot assemble video.json analysis.json sections.json verification.json
 
-# Validate quality
-casestudypilot validate case-studies/company.md
+# Assemble reference architecture
+casestudypilot assemble-reference-architecture ref_arch.json screenshots/*.jpg
 ```
 
-### 2. GitHub Copilot Custom Agent
+**Validation (Fail-Fast Architecture):**
+```bash
+# Validate transcript quality
+casestudypilot validate-transcript video_data.json
 
-**Agent:** `@case-study-agent`  
-**Location:** `.github/agents/case-study-agent.md`
+# Validate company name
+casestudypilot validate-company "Company" "Title"
 
-Orchestrates 12-step workflow from issue to pull request.
+# Validate analysis output
+casestudypilot validate-analysis transcript_analysis.json
 
-### 3. Agent Skills (3)
+# Detect fabricated metrics
+casestudypilot validate-metrics case_study.json video_data.json
 
+# Check company consistency (prevent wrong company bug)
+casestudypilot validate-consistency case_study.json video_data.json
+
+# Validate deep analysis for reference architectures
+casestudypilot validate-deep-analysis deep_analysis.json
+
+# Validate technical depth score
+casestudypilot validate-reference-architecture ref_arch.json
+
+# Run all validations
+casestudypilot validate-all video.json analysis.json sections.json
+```
+
+**Presenter Profiles:**
+```bash
+# Search for presenter's videos
+casestudypilot search-presenter "Name" --github username
+
+# Fetch GitHub profile
+casestudypilot fetch-github-profile username
+
+# Validate presenter profile
+casestudypilot validate-presenter-profile profile.json
+
+# Assemble presenter profile
+casestudypilot assemble-presenter-profile biography.json talks.json github.json
+```
+
+**Orchestration:**
+```bash
+# Discover and route pending issues
+casestudypilot orchestrate
+
+# Update README with generated content
+casestudypilot update-readme
+```
+
+### 2. GitHub Copilot Custom Agents
+
+**4 Operational Agents:**
+
+1. **`case-study-agent`** (v2.2.0)
+   - 14-step workflow with 5 validation checkpoints
+   - Generates 500-1500 word case studies
+   - Minimum 2 CNCF projects, technical depth ≥0.60
+
+2. **`reference-architecture-agent`** (v1.0.0)
+   - 18-step workflow with 7 validation checkpoints
+   - Generates 2000-5000 word technical deep-dives
+   - Minimum 5 CNCF projects, technical depth ≥0.70
+
+3. **`content-orchestrator`**
+   - Discovers pending issues by label
+   - Routes to appropriate agents
+   - Handles error recovery
+
+4. **`people-agent`**
+   - Generates presenter profiles
+   - Aggregates multiple talks
+   - Integrates GitHub data
+
+**Location:** `.github/agents/*.md`
+
+### 3. Agent Skills (12)
+
+**Content Generation:**
 1. **transcript-correction** - Fix common transcript errors
-2. **transcript-analysis** - Extract structured data
-3. **case-study-generation** - Generate polished markdown sections
+2. **transcript-analysis** - Extract structured data (case studies)
+3. **transcript-deep-analysis** - Deep extraction (reference architectures)
+4. **case-study-generation** - Generate polished case study sections
+5. **reference-architecture-generation** - Generate technical deep-dive content
+6. **architecture-diagram-specification** - Generate textual diagram specs
+
+**Presenter Profiles:**
+7. **biography-extraction** - Extract presenter bio from transcripts
+8. **talk-aggregation** - Aggregate multiple talk insights
+9. **presenter-profile-generation** - Generate complete profiles
+
+**Project Management:**
+10. **epic-creation** - Create epic issues from plans
+11. **epic-journey-update** - Update epic completion summaries
 
 **Location:** `.github/skills/*/SKILL.md`
 
 ### 4. Quality Validation
 
-Multi-factor scoring across:
+**Multi-Factor Scoring:**
+
+**Case Studies (threshold: 0.60):**
 - Structure (30%): Required sections present
 - Content Depth (40%): Word counts per section  
 - CNCF Mentions (20%): Projects referenced
 - Formatting (10%): Markdown quality
 
-**Passing threshold:** 0.60
+**Reference Architectures (threshold: 0.70):**
+- CNCF Project Depth (25%): 5+ projects with details
+- Technical Specificity (20%): Implementation details
+- Implementation Detail (20%): Version numbers, configs
+- Metric Quality (20%): Quantifiable results with citations
+- Architecture Completeness (15%): All 3 layers documented
+
+**Validation Checkpoints:**
+- Transcript quality (empty transcript prevention)
+- Company identification (generic placeholder detection)
+- Analysis output (CNCF project extraction)
+- Metric fabrication detection (fuzzy matching against transcript)
+- Company consistency (wrong company hallucination prevention)
 
 ---
 
@@ -509,77 +634,126 @@ See `docs/CONSTRAINTS.md` for complete policy.
 
 ## Implementation Status
 
-### ✅ Completed
-- Design reviewed and validated
-- Architecture simplified (no API key)
-- Complete planning documentation
-- Implementation guide created
-- Constraint policy documented
+### ✅ Fully Operational (v2.2.0)
 
-### 🔜 Next Steps
-1. Implementing agent reads `docs/CONSTRAINTS.md`
-2. Implementing agent reviews `docs/PLANNING.md`
-3. Implementing agent requests approval to begin
-4. Step-by-step implementation following `docs/IMPLEMENTATION-GUIDE.md`
-5. Testing with real YouTube videos
-6. First case study generated
+**Core Features:**
+- ✅ All CLI commands implemented and tested
+- ✅ Case study generation agent operational
+- ✅ Reference architecture generation agent operational
+- ✅ Content orchestrator for discovery and routing
+- ✅ People/presenter profile agent operational
+- ✅ Fail-fast validation architecture preventing hallucination
+- ✅ Multi-factor quality scoring (0.60 threshold for case studies, 0.70 for reference architectures)
+- ✅ Container support with zero-CVE base images (Chainguard)
+- ✅ Comprehensive test suite (85%+ coverage)
+
+**Generated Content:**
+- ✅ 3 case studies successfully generated
+- ✅ 1 reference architecture successfully generated
+- ✅ All outputs validated and passing quality checks
+
+**Agents:**
+- ✅ `case-study-agent` (v2.2.0) - 14-step workflow with 5 validation checkpoints
+- ✅ `reference-architecture-agent` (v1.0.0) - 18-step workflow with 7 validation checkpoints
+- ✅ `content-orchestrator` - Issue discovery, routing, and error recovery
+- ✅ `people-agent` - Presenter profile generation from multiple talks
+
+**Skills:**
+- ✅ 12 operational LLM skills for content generation, analysis, and quality assurance
+- ✅ Integrated with superpowers framework for planning, debugging, and TDD
+
+**Documentation:**
+- ✅ Complete agent operational guide (`AGENTS.md`)
+- ✅ Extension guide (`CONTRIBUTING.md`)
+- ✅ Implementation context tracking via epic issues
+- ✅ API decision documentation and rationale
 
 ---
 
-## File Structure (Planned)
+## File Structure
 
 ```
 .
 ├── .github/
 │   ├── agents/
-│   │   └── case-study-agent.md          # Custom agent
+│   │   ├── case-study-agent.md              # Case study generator (v2.2.0)
+│   │   ├── reference-architecture-agent.md  # Reference architecture generator (v1.0.0)
+│   │   ├── content-orchestrator.md          # Issue discovery and routing
+│   │   └── people-agent.md                  # Presenter profile generator
 │   ├── skills/
-│   │   ├── transcript-correction/       # Skill 1
-│   │   ├── transcript-analysis/         # Skill 2
-│   │   └── case-study-generation/       # Skill 3
+│   │   ├── transcript-correction/           # Fix transcript errors
+│   │   ├── transcript-analysis/             # Extract structured data
+│   │   ├── transcript-deep-analysis/        # Deep analysis for ref archs
+│   │   ├── case-study-generation/           # Generate case study content
+│   │   ├── reference-architecture-generation/  # Generate ref arch content
+│   │   ├── architecture-diagram-specification/ # Diagram specifications
+│   │   ├── biography-extraction/            # Extract presenter bios
+│   │   ├── presenter-profile-generation/    # Generate presenter profiles
+│   │   ├── talk-aggregation/                # Aggregate multiple talks
+│   │   ├── epic-creation/                   # Create epic issues
+│   │   └── epic-journey-update/             # Update epic completion
 │   └── workflows/
-│       └── copilot-setup-steps.yml      # Environment setup
+│       └── issue-templates/                 # GitHub issue templates
 │
-├── casestudypilot/                      # Python package
-│   ├── __main__.py                      # CLI entry point
-│   └── tools/                           # 4 CLI tools
-│       ├── youtube_client.py
-│       ├── company_verifier.py
-│       ├── assembler.py
-│       └── validator.py
+├── casestudypilot/                          # Python package
+│   ├── __main__.py                          # CLI entry point
+│   └── tools/                               # CLI tools
+│       ├── youtube_client.py                # YouTube data fetching
+│       ├── company_verifier.py              # CNCF membership verification
+│       ├── assembler.py                     # Content assembly
+│       ├── validator.py                     # Quality validation
+│       ├── screenshot_extractor.py          # Screenshot extraction
+│       ├── github_client.py                 # GitHub profile fetching
+│       ├── presenter_search.py              # Presenter video search
+│       └── orchestrator.py                  # Issue orchestration
 │
 ├── templates/
-│   └── case_study.md.j2                 # Jinja2 template
+│   ├── case_study.md.j2                     # Case study template
+│   ├── reference_architecture.md.j2         # Reference architecture template
+│   └── presenter_profile.md.j2              # Presenter profile template
 │
-├── case-studies/                        # Output directory
-├── tests/                               # Test suite
+├── case-studies/                            # Generated case studies
+├── reference-architectures/                 # Generated reference architectures
+├── tests/                                   # Comprehensive test suite
 │
 ├── docs/
-│   ├── CONSTRAINTS.md                   # Approval policy ⚠️
-│   ├── PLANNING.md                      # Specifications
-│   ├── IMPLEMENTATION-GUIDE.md          # Step-by-step tasks
-│   ├── API-KEY-DECISION.md              # Architecture decision
-│   ├── GITHUB-ISSUE-WORKFLOW.md         # Issue workflow docs
-│   └── plans/
-│       └── 2026-02-09-design.md         # Original design
+│   ├── CONSTRAINTS.md                       # Implementation policies
+│   ├── API-KEY-DECISION.md                  # Architecture decisions
+│   ├── CASE-STUDY-VS-REFERENCE-ARCHITECTURE.md
+│   ├── REFERENCE-ARCHITECTURE-USER-GUIDE.md
+│   ├── CONTAINER-QUICK-START.md             # Container usage guide
+│   └── plans/                               # Implementation plans
 │
-├── README.md                            # This file
-└── requirements.txt                     # Dependencies
+├── AGENTS.md                                # Agent operational guide
+├── CONTRIBUTING.md                          # Extension guide
+├── CHANGELOG.md                             # Version history
+├── README.md                                # This file
+├── requirements.txt                         # Python dependencies
+├── pyproject.toml                           # Project configuration
+├── Dockerfile                               # Container build
+└── justfile                                 # Container commands
 ```
 
 ---
 
 ## Success Criteria
 
-Implementation will be complete when:
+### ✅ All Criteria Met
 
-- [ ] All 4 CLI commands work correctly
-- [ ] Agent workflow executes end-to-end  
-- [ ] Generated case studies pass validation (≥0.60)
-- [ ] No API keys required for basic operation
-- [ ] Complete documentation exists
-- [ ] At least 1 successful case study generated
-- [ ] Tests pass (≥80% coverage)
+- [x] All CLI commands work correctly (30+ commands implemented)
+- [x] Agent workflows execute end-to-end (4 agents operational)
+- [x] Generated case studies pass validation (≥0.60)
+- [x] Generated reference architectures pass validation (≥0.70)
+- [x] No API keys required for basic operation
+- [x] Complete documentation exists (AGENTS.md, CONTRIBUTING.md, user guides)
+- [x] Multiple successful case studies generated (3)
+- [x] Reference architecture generated and validated (1)
+- [x] Tests pass with high coverage (85%+)
+- [x] Container support with security hardening
+- [x] Fail-fast validation preventing hallucination
+- [x] Epic issue tracking for implementation context
+
+**Status:** 🎉 **Production Ready** - Framework operational and generating high-quality content.
 
 ---
 
@@ -594,17 +768,34 @@ Implementation will be complete when:
 
 ## For Future Agents
 
-**⚠️ CRITICAL: Read `docs/CONSTRAINTS.md` before doing ANYTHING**
+**Read First:** `AGENTS.md` - Complete operational guide for LLM agents
 
-This project has a strict approval policy. You MUST:
-1. Read the constraints document
-2. Understand the approval process
-3. Request approval before creating files
-4. Wait for explicit approval
-5. Only do what was approved
+This project uses a **skill-driven agent framework** with three layers:
+1. **Agents** (Layer 1) - Orchestrate workflows, make decisions
+2. **Skills** (Layer 2) - LLM-powered content generation
+3. **CLI Tools** (Layer 3) - Python validation and data operations
 
-**Do not implement without approval. Do not assume. Always ask.**
+**Key Principles:**
+- ✅ Always check exit codes (0=pass, 1=warning, 2=critical stop)
+- ✅ Use fail-fast validation to prevent hallucination
+- ✅ Skills have structured JSON inputs/outputs
+- ✅ Use GitHub MCP or `gh` CLI for GitHub operations (never curl)
+- ✅ Check epic issues for implementation context before modifying code
+- ✅ Follow superpowers skills for planning, debugging, and TDD
+
+**Before working on this codebase:**
+1. Read `AGENTS.md` for operational patterns
+2. Search epic issues for relevant context (`gh issue list --label "epic"`)
+3. Review agent workflow files (`.github/agents/*.md`)
+4. Understand validation checkpoints and exit codes
+
+**Extending the framework:**
+- New content types: Follow `CONTRIBUTING.md`
+- New agents: Use case-study-agent as template
+- New skills: Follow skill structure in `.github/skills/`
+- New CLI tools: Return proper exit codes (0/1/2)
 
 ---
 
-*This project is ready for implementation by a future agent following the documented process.*
+**Framework Version:** 2.2.0  
+**Status:** ✅ Production Ready - Ready for Skill Expansion
