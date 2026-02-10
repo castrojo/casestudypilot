@@ -566,9 +566,36 @@ Reference architectures require **6+ screenshots distributed contextually** acro
 
 1. **Place screenshot immediately after** the paragraph that describes what it shows
 2. **Use descriptive alt text** that explains what the screenshot depicts (not generic "Figure 1")
-3. **Add caption** with context (e.g., "*Load testing results presented at 19:00 demonstrating 4x improvement*")
-4. **Spread across document** - aim for 1-2 screenshots per major section
-5. **Match content to image** - if discussing cache architecture, place cache diagram there
+3. **Use clickable thumbnail format** that links to exact video timestamp where slide appears
+4. **Add caption** with human-readable timestamp (e.g., "*Load testing results demonstrating 4x improvement (19:00)*")
+5. **Spread across document** - aim for 1-2 screenshots per major section
+6. **Match content to image** - if discussing cache architecture, place cache diagram there
+
+**Screenshot Markdown Format:**
+
+Screenshots MUST use clickable thumbnail format that links to the video timestamp:
+
+```markdown
+[![Descriptive alt text explaining what the screenshot shows](path/to/screenshot.jpg)](https://www.youtube.com/watch?v=VIDEO_ID&t=XXXs)
+*Caption describing the screenshot with human-readable timestamp (MM:SS)*
+```
+
+**Example:**
+```markdown
+[![Load testing results comparing legacy VM infrastructure with Kubernetes-based architecture](images/company-slug/screenshot-3.jpg)](https://www.youtube.com/watch?v=rqDrrTKzNd8&t=1140s)
+*Load testing results demonstrating 4x performance improvement with the new Kubernetes infrastructure (19:00)*
+```
+
+**Timestamp Conversion:**
+- Human-readable format: `(MM:SS)` in caption
+- URL format: `&t=XXXs` where XXX is total seconds
+- Example: 19:00 → 19 × 60 = 1140 seconds → `&t=1140s`
+
+**Why clickable thumbnails?**
+- Allows readers to click screenshot and jump to exact moment in video
+- Maintains connection between written content and source presentation
+- Follows same pattern as case studies
+- Enhances user experience for technical audiences
 
 **Assembly Script Responsibility:**
 
