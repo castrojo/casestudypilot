@@ -94,11 +94,11 @@ The key to success was embracing [cloud-native](https://glossary.cncf.io/cloud-n
 - **[Envoy](https://www.envoyproxy.io)**: Part of microservices ecosystem
 
 **Key Metrics:**
-- We have millions of gyms worldwide
-- We have trillions of possibilities every single day
-- seven plus raid tiers
-- we achieved the double-digit growth in the rate engagement
-- The model utilizes close to a thousand features including geotemporal data, live events, and player activity
+- Millions of gyms optimized worldwide
+- Trillions of scheduling possibilities evaluated daily
+- 7+ raid tiers managed
+- Double-digit growth in raid engagement
+- ~1,000 features per ML prediction (geotemporal data, events, player activity)
 
 **Video Source:**
 - **Title:** Keynote: Scaling Geo-Temporal ML: How Pokémon Go Optimizes Global Gameplay With... Y. Liu & A. Zhang
