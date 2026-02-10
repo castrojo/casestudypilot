@@ -1,6 +1,5 @@
 name: Generate a Case Study
 description: Generate a business-focused case study (500-1500 words, 5 sections) from a YouTube video
-title: ""
 labels: ["case-study"]
 assignees: []
 body:
