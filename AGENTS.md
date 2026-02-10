@@ -47,7 +47,8 @@ Located at: `~/.config/opencode/skills/superpowers/`
 | Implementing new agent | ✅ `brainstorming`, `test-driven-development` | Reference existing agents |
 | Creating new skill | ✅ `writing-skills` | Follow `.github/skills/` patterns |
 | Generating case study | Domain workflow | ✅ `case-study-agent` |
-| Analyzing transcript | Domain task | ✅ `transcript-analysis` skill |
+| Generating reference architecture | Domain workflow | ✅ `reference-architecture-agent` |
+| Analyzing transcript | Domain task | ✅ `transcript-analysis` or `transcript-deep-analysis` skill |
 
 **Integration Point:** CaseStudyPilot agents and skills follow superpowers patterns but are specialized for CNCF content generation.
 
@@ -413,6 +414,220 @@ All agent workflows that interact with GitHub must include authentication checks
 14. Create PR and post to issue
 
 **This is your template for creating new agent workflows.**
+
+### Current Implementation: Reference Architecture Generation
+
+**Agent:** `reference-architecture-agent` (v1.0.0)  
+**Workflow:** 18 steps with 7 validation checkpoints (5 critical)  
+**Location:** `.github/agents/reference-architecture-agent.md`
+
+**Purpose:** Generate comprehensive CNCF reference architectures (2000-5000 words, 13 sections, 5+ CNCF projects) suitable for Technical Advisory Board (TAB) submission. Designed for technical audiences (engineers, architects).
+
+**Summary:**
+1. Pre-flight checks (environment ready?)
+2. Fetch video data → Validate transcript quality (≥2000 chars)
+3. Extract company name → Validate company
+4. Verify CNCF membership
+5. **Skill:** Correct transcript (transcript-correction)
+6. **Skill:** Deep analysis (transcript-deep-analysis) → Validate deep analysis (5+ projects, 3 layers, 2+ patterns) **[CRITICAL]**
+7. Extract 6+ screenshots
+8. **Skill:** Architecture diagram specification (architecture-diagram-specification)
+9. **Skill:** Generate reference architecture (reference-architecture-generation)
+10. Validate metrics (fabrication check with transcript quotes) **[CRITICAL]**
+11. Validate company consistency **[CRITICAL]**
+12. Assemble markdown with screenshots
+13. Validate technical depth score (≥0.70) **[CRITICAL]**
+14. Generate TAB submission guidance
+15. Create branch
+16. Commit (atomic: 1 markdown + 6+ images)
+17. Create PR with TAB submission instructions
+18. Post to issue and notify
+
+**Key Differences from Case Study Agent:**
+
+| Aspect | Case Study Agent | Reference Architecture Agent |
+|--------|------------------|------------------------------|
+| Content Depth | 500-1500 words, 5 sections | 2000-5000 words, 13 sections |
+| CNCF Projects | 2+ projects | 5+ projects with detailed usage |
+| Architecture | Overview only | 3-layer breakdown + integration patterns |
+| Diagrams | None | Textual component + data flow specs |
+| Screenshots | 3 screenshots | 6+ screenshots (architecture-focused) |
+| Technical Depth | Score ≥0.60 | Score ≥0.70 (5-dimensional scoring) |
+| Skills Used | 3 skills | 3 specialized skills (deep-analysis, diagram-spec, generation) |
+| Validation Checkpoints | 5 checkpoints | 7 checkpoints (5 critical fail-fast) |
+| Target Audience | Business leaders | Engineers, architects |
+| CNCF TAB Submission | Not designed for | Explicitly designed for submission |
+| Transcript Minimum | ≥1000 chars | ≥2000 chars (more content needed) |
+
+**Technical Depth Scoring Algorithm:**
+
+The reference architecture agent uses a **5-dimensional scoring system** with weighted components:
+
+```python
+technical_depth_score = (
+    0.25 * cncf_project_depth +      # 5+ projects, detailed descriptions
+    0.20 * technical_specificity +    # Concrete implementation details
+    0.20 * implementation_detail +    # Version numbers, configurations
+    0.20 * metric_quality +           # Quantifiable results with citations
+    0.15 * architecture_completeness  # All 3 layers documented
+)
+```
+
+**Threshold:** ≥0.70 (PASS), 0.60-0.69 (WARNING), <0.60 (CRITICAL)
+
+**When to Use:**
+- ✅ Video is 15-40 minutes with technical depth
+- ✅ Discusses comprehensive architecture (5+ CNCF projects)
+- ✅ Includes system diagrams or detailed demos
+- ✅ Covers integration patterns and implementation details
+- ✅ Target audience is engineers/architects
+- ✅ Content intended for CNCF TAB submission
+
+**Critical Validation Checkpoints:**
+
+1. **Deep Analysis (Step 6):** Exit code 2 if <5 CNCF projects, missing architecture layers, or <2 integration patterns
+2. **Metric Fabrication (Step 10):** Exit code 2 if metrics lack transcript quotes
+3. **Company Consistency (Step 11):** Exit code 2 if content mentions wrong company
+4. **Technical Depth Score (Step 13):** Exit code 2 if score <0.60, exit code 1 if 0.60-0.69
+5. **Transcript Quality (Step 2):** Exit code 2 if <2000 characters
+
+**Output Structure:**
+
+```markdown
+---
+title: "Reference Architecture: Company Cloud-Native Platform"
+subtitle: "Multi-cluster Kubernetes with Service Mesh and Progressive Delivery"
+company: "Company Name"
+industry: "Technology"
+video_url: "https://youtube.com/..."
+publication_date: "2026-02-XX"
+tab_status: "ready_for_submission"
+primary_patterns:
+  - "Multi-cluster orchestration"
+  - "Service mesh architecture"
+  - "Progressive delivery"
+---
+
+## Executive Summary
+[100-200 words]
+
+## Background & Context
+[300-500 words]
+
+## Technical Challenge
+[300-500 words]
+
+## Architecture Overview
+[400-600 words - 3 layers breakdown]
+
+## Architecture Diagrams
+[200-400 words - textual specifications]
+
+## CNCF Projects Deep Dive
+[600-1000 words - 5+ projects]
+
+## Integration Patterns
+[300-500 words]
+
+## Implementation Details
+[400-600 words]
+
+## Deployment Architecture
+[200-400 words]
+
+## Security Considerations
+[200-400 words]
+
+## Observability & Operations
+[300-500 words]
+
+## Results & Impact
+[200-400 words]
+
+## Lessons Learned & Best Practices
+[200-400 words]
+
+## Conclusion
+[100-200 words]
+```
+
+**Skills Used:**
+
+1. **transcript-deep-analysis** (38KB)
+   - Extracts 5+ CNCF projects with usage context
+   - Identifies 3-layer architecture (Infrastructure, Platform, Application)
+   - Finds integration patterns between components
+   - Extracts technical metrics with transcript quotes
+   - Identifies 6+ screenshot opportunities
+
+2. **architecture-diagram-specification** (37KB)
+   - Generates textual diagram descriptions (NOT code)
+   - Component diagrams (services, data stores, boundaries)
+   - Data flow diagrams (request paths, data pipelines)
+   - No Mermaid/PlantUML to avoid hallucination
+
+3. **reference-architecture-generation** (~1000 lines)
+   - 18-step execution process
+   - Generates all 13 sections
+   - Ensures technical depth and completeness
+   - Maintains company consistency throughout
+   - Cites transcript for all metrics
+
+**CLI Tools:**
+
+```bash
+# Validate deep analysis output
+python -m casestudypilot validate-deep-analysis deep_analysis.json
+# Exit 0: 5+ projects, 3 layers, 2+ patterns ✅
+# Exit 1: 4 projects or 1 pattern ⚠️
+# Exit 2: <4 projects or missing layers ❌
+
+# Validate technical depth score
+python -m casestudypilot validate-reference-architecture ref_arch.json
+# Exit 0: score ≥0.70 ✅
+# Exit 1: score 0.60-0.69 ⚠️
+# Exit 2: score <0.60 ❌
+
+# Assemble reference architecture
+python -m casestudypilot assemble-reference-architecture \
+  ref_arch.json screenshots/*.jpg --output output.md
+```
+
+**Error Templates:**
+
+All error templates are embedded in the agent workflow file. Critical checkpoints include detailed error messages with:
+- What went wrong
+- Critical issues list
+- Possible causes
+- Action required from user
+
+**CNCF TAB Submission:**
+
+The agent generates a TAB submission guide in the PR description:
+
+```markdown
+## 📋 CNCF TAB Submission Guide
+
+This reference architecture is ready for submission to the CNCF Technical Advisory Board.
+
+### Submission Checklist
+- ✅ Technical depth score: X.XX (≥0.70 required)
+- ✅ CNCF projects: N projects documented
+- ✅ Architecture: 3 layers complete
+- ✅ Word count: XXXX words (2000-5000 range)
+- ✅ Metrics cited: All metrics have transcript quotes
+- ✅ Company verified: CNCF end-user member
+
+### Next Steps
+1. Review the generated content in `reference-architectures/company.md`
+2. Verify technical accuracy
+3. Optionally add diagrams (Mermaid/PlantUML)
+4. Create issue in cncf/toc repository
+5. Link to this reference architecture
+```
+
+**Version History:**
+- **v1.0.0** (February 2026) - Initial release with 18-step workflow
 
 ## Common Patterns and Best Practices
 

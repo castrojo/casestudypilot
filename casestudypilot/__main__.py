@@ -23,19 +23,18 @@ from casestudypilot.validation import (
     validate_company_consistency as validate_company_consistency_fn,
     Severity,
 )
+from casestudypilot.tools.validate_deep_analysis import main as validate_deep_analysis_main
+from casestudypilot.tools.validate_reference_architecture import main as validate_reference_architecture_main
+from casestudypilot.tools.assemble_reference_architecture import main as assemble_reference_architecture_main
 
-app = typer.Typer(
-    name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False
-)
+app = typer.Typer(name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False)
 console = Console()
 
 
 @app.command()
 def youtube_data(
     url: str = typer.Argument(..., help="YouTube video URL"),
-    output: Path = typer.Option(
-        Path("video_data.json"), "--output", "-o", help="Output JSON file path"
-    ),
+    output: Path = typer.Option(Path("video_data.json"), "--output", "-o", help="Output JSON file path"),
 ):
     """Fetch YouTube video data and transcript."""
     try:
@@ -49,9 +48,7 @@ def youtube_data(
         console.print(f"[green]✓ Video data saved to:[/green] {output}")
         console.print(f"[dim]Video ID:[/dim] {data['video_id']}")
         console.print(f"[dim]Duration:[/dim] {data.get('duration_formatted', 'N/A')}")
-        console.print(
-            f"[dim]Transcript length:[/dim] {len(data.get('transcript', ''))} characters"
-        )
+        console.print(f"[dim]Transcript length:[/dim] {len(data.get('transcript', ''))} characters")
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -117,9 +114,7 @@ def assemble(
     """Assemble case study from component JSON files."""
     try:
         console.print("[cyan]Assembling case study...[/cyan]")
-        result = assemble_case_study(
-            video_data, analysis, sections, verification, output, screenshots
-        )
+        result = assemble_case_study(video_data, analysis, sections, verification, output, screenshots)
 
         console.print(f"[green]✓ Case study assembled:[/green] {result['output_path']}")
         console.print(f"[dim]Company:[/dim] {result['company_name']}")
@@ -135,19 +130,13 @@ def extract_screenshots_cmd(
     video_data: Path = typer.Argument(..., help="Video data JSON file"),
     analysis: Path = typer.Argument(..., help="Analysis JSON file"),
     sections: Path = typer.Argument(..., help="Sections JSON file"),
-    download_dir: str = typer.Option(
-        ..., "--download-dir", "-d", help="Directory to download screenshots to"
-    ),
-    output: Path = typer.Option(
-        Path("screenshots.json"), "--output", "-o", help="Output JSON file path"
-    ),
+    download_dir: str = typer.Option(..., "--download-dir", "-d", help="Directory to download screenshots to"),
+    output: Path = typer.Option(Path("screenshots.json"), "--output", "-o", help="Output JSON file path"),
 ):
     """Extract and download screenshots from video."""
     try:
         console.print("[cyan]Extracting screenshots...[/cyan]")
-        result = extract_screenshots_fn(
-            video_data, analysis, sections, output, Path(download_dir)
-        )
+        result = extract_screenshots_fn(video_data, analysis, sections, output, Path(download_dir))
 
         console.print(f"[green]✓ Screenshots extracted:[/green] {output}")
         console.print(f"[dim]Company:[/dim] {result['company_slug']}")
@@ -160,9 +149,7 @@ def extract_screenshots_cmd(
             status = "[green]✓[/green]" if success else "[red]✗[/red]"
             console.print(f"  {status} {section.title()}: {screenshot['local_path']}")
             if not success:
-                console.print(
-                    f"    [red]Error:[/red] {screenshot.get('download_error')}"
-                )
+                console.print(f"    [red]Error:[/red] {screenshot.get('download_error')}")
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -172,12 +159,8 @@ def extract_screenshots_cmd(
 @app.command()
 def validate(
     case_study_path: Path = typer.Argument(..., help="Case study markdown file"),
-    output: Path = typer.Option(
-        Path("validation_results.json"), "--output", "-o", help="Output JSON file path"
-    ),
-    threshold: float = typer.Option(
-        0.60, "--threshold", "-t", help="Minimum quality score threshold"
-    ),
+    output: Path = typer.Option(Path("validation_results.json"), "--output", "-o", help="Output JSON file path"),
+    threshold: float = typer.Option(0.60, "--threshold", "-t", help="Minimum quality score threshold"),
 ):
     """Validate case study quality."""
     try:
@@ -193,13 +176,9 @@ def validate(
         # Display result
         score = result["quality_score"]
         if result["passes"]:
-            console.print(
-                f"[green]✓ Quality score: {score:.2f}[/green] (threshold: {threshold:.2f})"
-            )
+            console.print(f"[green]✓ Quality score: {score:.2f}[/green] (threshold: {threshold:.2f})")
         else:
-            console.print(
-                f"[red]✗ Quality score: {score:.2f}[/red] (threshold: {threshold:.2f})"
-            )
+            console.print(f"[red]✗ Quality score: {score:.2f}[/red] (threshold: {threshold:.2f})")
 
         # Display warnings
         if result["warnings"]:
@@ -216,9 +195,7 @@ def validate(
 
         for category, details in result["details"].items():
             status = "✓" if details["passed"] else "✗"
-            table.add_row(
-                category.replace("_", " ").title(), f"{details['score']:.2f}", status
-            )
+            table.add_row(category.replace("_", " ").title(), f"{details['score']:.2f}", status)
 
         console.print(table)
 
@@ -243,9 +220,7 @@ def validate_transcript_cmd(
             data = json.load(f)
 
         # Validate transcript
-        result = validate_transcript_fn(
-            data.get("transcript", ""), data.get("transcript_segments", [])
-        )
+        result = validate_transcript_fn(data.get("transcript", ""), data.get("transcript_segments", []))
 
         # Display result
         console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
@@ -262,9 +237,7 @@ def validate_transcript_cmd(
             if not check.passed:
                 icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
                 color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(
-                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
-                )
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
                 if check.details:
                     console.print(f"    [dim]{check.details}[/dim]")
 
@@ -290,9 +263,7 @@ def validate_transcript_cmd(
 def validate_company_cmd(
     company_name: str = typer.Argument(..., help="Company name to validate"),
     video_title: str = typer.Argument(..., help="Video title for context"),
-    confidence: float = typer.Option(
-        1.0, "--confidence", "-c", help="Extraction confidence score (0.0-1.0)"
-    ),
+    confidence: float = typer.Option(1.0, "--confidence", "-c", help="Extraction confidence score (0.0-1.0)"),
 ):
     """Validate extracted company name."""
     try:
@@ -315,9 +286,7 @@ def validate_company_cmd(
             if not check.passed:
                 icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
                 color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(
-                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
-                )
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
 
         # Output JSON
         console.print(f"\n[dim]Full validation result:[/dim]")
@@ -365,9 +334,7 @@ def validate_analysis_cmd(
             if not check.passed:
                 icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
                 color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(
-                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
-                )
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
 
         # Output JSON
         console.print(f"\n[dim]Full validation result:[/dim]")
@@ -404,9 +371,7 @@ def validate_metrics_cmd(
         with open(analysis, "r", encoding="utf-8") as f:
             analysis_data = json.load(f)
 
-        result = validate_metrics_fn(
-            sections_data, video_data_json.get("transcript", ""), analysis_data
-        )
+        result = validate_metrics_fn(sections_data, video_data_json.get("transcript", ""), analysis_data)
 
         # Display result
         console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
@@ -456,13 +421,9 @@ def validate_consistency_cmd(
         with open(verification, "r", encoding="utf-8") as f:
             verification_data = json.load(f)
 
-        expected_company = verification_data.get(
-            "matched_name", verification_data.get("query_name", "Unknown")
-        )
+        expected_company = verification_data.get("matched_name", verification_data.get("query_name", "Unknown"))
 
-        result = validate_company_consistency_fn(
-            expected_company, sections_data, video_data_json
-        )
+        result = validate_company_consistency_fn(expected_company, sections_data, video_data_json)
 
         # Display result
         console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
@@ -480,9 +441,7 @@ def validate_consistency_cmd(
             if not check.passed:
                 icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
                 color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(
-                    f"  [{color}]{icon} {check.name}[/{color}]: {check.message}"
-                )
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
                 if check.details:
                     console.print(f"    [dim]{check.details}[/dim]")
 
@@ -549,9 +508,7 @@ def validate_all_cmd(
         console.print("[cyan]3. Validating metrics...[/cyan]")
         with open(sections, "r", encoding="utf-8") as f:
             sections_data = json.load(f)
-        metrics_result = validate_metrics_fn(
-            sections_data, video_data_json.get("transcript", ""), analysis_data
-        )
+        metrics_result = validate_metrics_fn(sections_data, video_data_json.get("transcript", ""), analysis_data)
         all_results["metrics"] = metrics_result.to_dict()
         console.print(f"   Status: {metrics_result.status.value}\n")
         if metrics_result.has_warnings():
@@ -561,12 +518,8 @@ def validate_all_cmd(
         console.print("[cyan]4. Validating company consistency...[/cyan]")
         with open(verification, "r", encoding="utf-8") as f:
             verification_data = json.load(f)
-        expected_company = verification_data.get(
-            "matched_name", verification_data.get("query_name", "Unknown")
-        )
-        consistency_result = validate_company_consistency_fn(
-            expected_company, sections_data, video_data_json
-        )
+        expected_company = verification_data.get("matched_name", verification_data.get("query_name", "Unknown"))
+        consistency_result = validate_company_consistency_fn(expected_company, sections_data, video_data_json)
         all_results["consistency"] = consistency_result.to_dict()
         console.print(f"   Status: {consistency_result.status.value}\n")
         if consistency_result.is_critical():
@@ -601,6 +554,34 @@ def validate_all_cmd(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(2)
+
+
+@app.command(name="validate-deep-analysis")
+def validate_deep_analysis_cmd(
+    analysis: Path = typer.Argument(..., help="Deep analysis JSON file"),
+):
+    """Validate deep analysis output for reference architectures."""
+    exit_code = validate_deep_analysis_main(str(analysis))
+    sys.exit(exit_code)
+
+
+@app.command(name="validate-reference-architecture")
+def validate_reference_architecture_cmd(
+    ref_arch: Path = typer.Argument(..., help="Reference architecture JSON file"),
+):
+    """Validate reference architecture with technical depth scoring."""
+    exit_code = validate_reference_architecture_main(str(ref_arch))
+    sys.exit(exit_code)
+
+
+@app.command(name="assemble-reference-architecture")
+def assemble_reference_architecture_cmd(
+    ref_arch_json: Path = typer.Argument(..., help="Reference architecture JSON file"),
+    output: Path = typer.Argument(..., help="Output markdown file path"),
+):
+    """Assemble reference architecture markdown from JSON."""
+    exit_code = assemble_reference_architecture_main(str(ref_arch_json), str(output))
+    sys.exit(exit_code)
 
 
 def main():

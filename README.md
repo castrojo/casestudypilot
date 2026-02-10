@@ -116,6 +116,198 @@ python -m casestudypilot validate-all video_data.json transcript_analysis.json c
 
 ---
 
+## 📐 Reference Architectures vs Case Studies
+
+CaseStudyPilot generates two types of content from CNCF videos:
+
+### Content Type Comparison
+
+| Aspect | Case Study | Reference Architecture |
+|--------|-----------|------------------------|
+| **Length** | 500-1500 words | 2000-5000 words |
+| **Sections** | 5 (Background, Challenge, Solution, Impact, Conclusion) | 13 (includes Architecture Overview, Diagrams, Integration Patterns, Security, Observability, etc.) |
+| **CNCF Projects** | 2+ projects | 5+ projects (detailed usage) |
+| **Technical Depth** | Score ≥0.60 | Score ≥0.70 |
+| **Architecture Details** | Overview only | 3-layer architecture (Infrastructure, Platform, Application) |
+| **Diagrams** | None | Textual diagram specifications (component + data flow) |
+| **Audience** | Business leaders, executives | Engineers, architects, technical decision-makers |
+| **Video Length** | 10-20 minutes | 15-40 minutes |
+| **Output Directory** | `case-studies/` | `reference-architectures/` |
+| **CNCF TAB Submission** | Not suitable | Designed for submission |
+| **Agent** | `case-study-agent` | `reference-architecture-agent` |
+| **Issue Label** | `case-study` | `reference-architecture` |
+
+### When to Use Each Type
+
+**Use Case Study when:**
+- ✅ Video is 10-20 minutes long
+- ✅ Single company story focused on business outcomes
+- ✅ Mentions 2-3 CNCF projects
+- ✅ Audience is business stakeholders
+- ✅ Quick turnaround needed (simpler workflow)
+
+**Use Reference Architecture when:**
+- ✅ Video is 15-40 minutes with technical depth
+- ✅ Discusses comprehensive architecture (5+ CNCF projects)
+- ✅ Includes system diagrams or detailed demos
+- ✅ Covers integration patterns and implementation details
+- ✅ Audience is technical (engineers, architects)
+- ✅ Intended for CNCF TAB submission
+
+### Reference Architecture Features
+
+**Enhanced Analysis:**
+- Deep transcript analysis extracts 5+ CNCF projects with usage context
+- 3-layer architecture breakdown (Infrastructure, Platform, Application)
+- Integration patterns between components
+- Technical metrics with transcript citations
+- 6+ screenshot opportunities identified
+
+**Comprehensive Content:**
+- 13 sections covering all technical aspects:
+  - Executive Summary
+  - Background & Context
+  - Technical Challenge
+  - Architecture Overview (3 layers)
+  - Architecture Diagrams (textual specifications)
+  - CNCF Projects Deep Dive (5+ projects)
+  - Integration Patterns
+  - Implementation Details
+  - Deployment Architecture
+  - Security Considerations
+  - Observability & Operations
+  - Results & Impact
+  - Lessons Learned & Best Practices
+  - Conclusion
+
+**Quality Standards:**
+- **Technical Depth Score**: 5-dimensional scoring algorithm
+  - CNCF Project Depth (25%): 5+ projects with detailed descriptions
+  - Technical Specificity (20%): Concrete implementation details
+  - Implementation Detail (20%): Version numbers, configurations
+  - Metric Quality (20%): Quantifiable results with citations
+  - Architecture Completeness (15%): All 3 layers documented
+- **Threshold**: Must achieve ≥0.70 (vs 0.60 for case studies)
+- **Word Count**: 2000-5000 words (vs 500-1500)
+
+**Validation Checkpoints:**
+1. Transcript quality (≥2000 characters for comprehensive content)
+2. Deep analysis (5+ CNCF projects, 3 layers, 2+ integration patterns)
+3. Metric fabrication detection (all metrics have transcript quotes)
+4. Company consistency check
+5. Final technical depth score (≥0.70)
+
+### Requesting Generation
+
+**Case Study:**
+```markdown
+Create GitHub issue with label: `case-study`
+Include YouTube URL in issue body
+```
+
+**Reference Architecture:**
+```markdown
+Create GitHub issue with label: `reference-architecture`
+Include YouTube URL in issue body
+
+Optionally include:
+- Expected CNCF projects
+- Known architecture patterns
+- Additional context
+```
+
+**Example Issue:**
+```markdown
+Title: [Reference Architecture] Acme Corp Cloud-Native Platform
+
+**YouTube URL**: https://www.youtube.com/watch?v=VIDEO_ID
+
+**Expected CNCF Projects**: Kubernetes, Prometheus, Envoy, Helm, Flagger
+
+**Architecture Context**: 
+Multi-cluster Kubernetes platform with service mesh, 
+distributed tracing, and progressive delivery.
+```
+
+### CLI Commands
+
+**Case Study Validation:**
+```bash
+# Validate transcript (minimum 1000 chars)
+python -m casestudypilot validate-transcript video_data.json
+
+# Validate analysis (2+ projects)
+python -m casestudypilot validate-analysis transcript_analysis.json
+
+# Assemble case study
+python -m casestudypilot assemble video.json analysis.json sections.json verification.json
+```
+
+**Reference Architecture Validation:**
+```bash
+# Validate deep analysis (5+ projects, 3 layers, integration patterns)
+python -m casestudypilot validate-deep-analysis deep_analysis.json
+
+# Validate technical depth score (≥0.70)
+python -m casestudypilot validate-reference-architecture ref_arch.json
+
+# Assemble reference architecture
+python -m casestudypilot assemble-reference-architecture ref_arch.json screenshots/*.jpg --output output.md
+```
+
+### Output Examples
+
+**Case Study Output:**
+```
+case-studies/
+├── acme-corp.md                    # 800 words, 5 sections
+└── images/
+    └── acme-corp/
+        ├── screenshot-1.jpg
+        ├── screenshot-2.jpg
+        └── screenshot-3.jpg
+```
+
+**Reference Architecture Output:**
+```
+reference-architectures/
+├── acme-corp-cloud-native-platform.md    # 3500 words, 13 sections
+└── images/
+    └── acme-corp-cloud-native-platform/
+        ├── screenshot-1.jpg          # Infrastructure overview
+        ├── screenshot-2.jpg          # Platform services
+        ├── screenshot-3.jpg          # Application layer
+        ├── screenshot-4.jpg          # Service mesh diagram
+        ├── screenshot-5.jpg          # Observability stack
+        └── screenshot-6.jpg          # Deployment pipeline
+```
+
+### Migration Path
+
+**Converting Case Study to Reference Architecture:**
+
+If a case study was generated but the content warrants a reference architecture:
+
+1. Re-label the issue: `case-study` → `reference-architecture`
+2. Reference architecture agent will re-process with deeper analysis
+3. Original case study remains in `case-studies/`
+4. New reference architecture created in `reference-architectures/`
+
+**Quality Indicators for Migration:**
+- Case study technical depth score is high (0.65-0.69)
+- Video contains 4+ CNCF projects
+- Transcript has rich architectural details
+- Community feedback requests more technical depth
+
+### Documentation
+
+- **User Guide**: `docs/REFERENCE-ARCHITECTURE-USER-GUIDE.md`
+- **Comparison**: `docs/CASE-STUDY-VS-REFERENCE-ARCHITECTURE.md`
+- **Agent Workflow**: `.github/agents/reference-architecture-agent.md`
+- **Skills**: `.github/skills/transcript-deep-analysis/`, `architecture-diagram-specification/`, `reference-architecture-generation/`
+
+---
+
 ## 🐋 Container Usage (Zero Host Dependencies)
 
 **No Python installation required!** Run CaseStudyPilot entirely in containers using Podman or Docker.
