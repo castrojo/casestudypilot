@@ -738,6 +738,403 @@ python -m casestudypilot validate-<output> output.json
 
 ---
 
+## Modifying Reference Architecture System
+
+### Overview
+
+The reference architecture system has unique components that may need modification:
+
+1. **5-Dimensional Technical Depth Scoring** - Algorithm in `validate_reference_architecture.py`
+2. **Deep Analysis Validation** - Checks for CNCF projects, layers, patterns in `validate_deep_analysis.py`
+3. **Jinja2 Template** - 13-section structure in `templates/reference_architecture.md.j2`
+4. **LLM Skills** - 3 specialized skills for deep analysis, diagrams, and generation
+
+### Modifying the Technical Depth Scoring Algorithm
+
+**File:** `casestudypilot/tools/validate_reference_architecture.py`
+
+The scoring algorithm uses 5 weighted components:
+
+```python
+technical_depth_score = (
+    0.25 * cncf_project_depth +      # 25% weight
+    0.20 * technical_specificity +    # 20% weight
+    0.20 * implementation_detail +    # 20% weight
+    0.20 * metric_quality +           # 20% weight
+    0.15 * architecture_completeness  # 15% weight
+)
+```
+
+#### Changing Score Weights
+
+To adjust the importance of each dimension:
+
+1. Locate the `calculate_technical_depth_score()` function
+2. Modify the weights (must sum to 1.0):
+   ```python
+   score = (
+       0.30 * cncf_project_depth +      # Increased importance
+       0.15 * technical_specificity +    # Decreased
+       0.20 * implementation_detail +    
+       0.20 * metric_quality +           
+       0.15 * architecture_completeness
+   )
+   ```
+3. Update the docstring to document the new weights
+4. Run tests: `pytest tests/test_validate_reference_architecture.py -v`
+
+#### Adding a New Scoring Dimension
+
+To add a 6th dimension (e.g., "observability_depth"):
+
+1. Create scoring function:
+   ```python
+   def score_observability_depth(data: dict) -> float:
+       """
+       Score observability implementation depth.
+       
+       Returns: 0.0-1.0
+       """
+       score = 0.0
+       
+       # Check for observability section
+       if "observability_operations" in data.get("sections", {}):
+           score += 0.3
+       
+       # Check for monitoring stack details
+       obs_text = data.get("sections", {}).get("observability_operations", "")
+       if "Prometheus" in obs_text or "Grafana" in obs_text:
+           score += 0.3
+       
+       # Check for alerting details
+       if "alert" in obs_text.lower():
+           score += 0.2
+       
+       # Check for SLO/SLI mentions
+       if "SLO" in obs_text or "SLI" in obs_text:
+           score += 0.2
+       
+       return min(score, 1.0)
+   ```
+
+2. Update main scoring function:
+   ```python
+   score = (
+       0.20 * cncf_project_depth +          # Rebalanced
+       0.15 * technical_specificity +
+       0.15 * implementation_detail +
+       0.15 * metric_quality +
+       0.15 * architecture_completeness +
+       0.20 * score_observability_depth(data)  # New dimension
+   )
+   ```
+
+3. Add test cases in `tests/test_validate_reference_architecture.py`
+
+4. Update `AGENTS.md` documentation with new scoring dimensions
+
+#### Changing Score Thresholds
+
+Current thresholds:
+- **≥0.70**: PASS (exit code 0)
+- **0.60-0.69**: WARNING (exit code 1)
+- **<0.60**: CRITICAL (exit code 2)
+
+To change thresholds:
+
+1. Locate threshold constants in `validate_reference_architecture.py`:
+   ```python
+   THRESHOLD_PASS = 0.70
+   THRESHOLD_WARN = 0.60
+   ```
+
+2. Modify values:
+   ```python
+   THRESHOLD_PASS = 0.75  # More stringent
+   THRESHOLD_WARN = 0.65
+   ```
+
+3. Update error messages to reflect new thresholds
+
+4. Update `README.md` and `AGENTS.md` documentation
+
+5. Test with existing reference architectures to ensure reasonable pass rates
+
+### Modifying Deep Analysis Validation
+
+**File:** `casestudypilot/tools/validate_deep_analysis.py`
+
+Current validation checks:
+
+| Check | Pass | Warn | Critical |
+|-------|------|------|----------|
+| CNCF Projects | 5+ | 4 | <4 |
+| Architecture Layers | All 3 | - | <3 |
+| Integration Patterns | 2+ | 1 | 0 |
+| Screenshots | 6+ | 4-5 | <4 |
+| Sections | All 6 required | - | Missing any |
+| Word Counts | 200-800 per section | - | <200 or >800 |
+
+#### Changing Validation Thresholds
+
+To require more CNCF projects:
+
+```python
+# Change from 5+ to 7+ required
+if num_projects >= 7:
+    print("✅ CNCF projects: {num_projects} (pass)")
+    return 0
+elif num_projects >= 5:
+    print(f"⚠️ CNCF projects: {num_projects} (warning, 7+ recommended)")
+    return 1
+else:
+    print(f"❌ CNCF projects: {num_projects} (critical, 5+ required)")
+    return 2
+```
+
+#### Adding New Validation Checks
+
+To add a check for "security patterns":
+
+```python
+def validate_security_patterns(data: dict) -> int:
+    """
+    Validate security patterns are documented.
+    
+    Returns: 0=pass, 1=warn, 2=critical
+    """
+    patterns = data.get("security_patterns", [])
+    
+    if len(patterns) >= 3:
+        print(f"✅ Security patterns: {len(patterns)}")
+        return 0
+    elif len(patterns) >= 1:
+        print(f"⚠️ Security patterns: {len(patterns)} (3+ recommended)")
+        return 1
+    else:
+        print("❌ No security patterns documented (critical)")
+        return 2
+```
+
+Then call in main validation function and combine exit codes appropriately.
+
+### Modifying the Jinja2 Template
+
+**File:** `templates/reference_architecture.md.j2`
+
+The template defines the 13-section structure and formatting.
+
+#### Adding a New Section
+
+To add a "Cost Optimization" section:
+
+1. Update the template after "Deployment Architecture":
+   ```jinja2
+   ## Cost Optimization
+   
+   {{ sections.cost_optimization }}
+   
+   {% if screenshots_by_section.cost_optimization %}
+   ### Visual Reference
+   {% for screenshot in screenshots_by_section.cost_optimization %}
+   ![{{ screenshot.caption }}](images/{{ company_slug }}/{{ screenshot.filename }})
+   *{{ screenshot.caption }}*
+   {% endfor %}
+   {% endif %}
+   ```
+
+2. Update `reference-architecture-generation` skill to generate the new section
+
+3. Update validation in `validate_reference_architecture.py` to expect the section
+
+4. Test template rendering with sample data
+
+#### Changing Section Order
+
+Rearrange sections in the template file - the order in the template determines output order.
+
+#### Modifying YAML Frontmatter
+
+To add new metadata fields:
+
+```jinja2
+---
+title: "{{ title }}"
+subtitle: "{{ subtitle }}"
+company: "{{ company }}"
+industry: "{{ industry }}"
+video_url: "{{ video_url }}"
+publication_date: "{{ publication_date }}"
+tab_status: "{{ tab_status }}"
+primary_patterns: {{ primary_patterns | tojson }}
+complexity_level: "{{ complexity_level }}"  # NEW FIELD
+estimated_read_time: {{ estimated_read_time }}  # NEW FIELD
+---
+```
+
+Then update `assemble_reference_architecture.py` to provide these values.
+
+### Modifying LLM Skills
+
+#### Transcript Deep Analysis Skill
+
+**File:** `.github/skills/transcript-deep-analysis/SKILL.md`
+
+**When to modify:**
+- Change required CNCF project count
+- Add new analysis dimensions (e.g., cost data, carbon footprint)
+- Modify screenshot identification logic
+
+**Process:**
+1. Update input/output format if needed
+2. Modify execution instructions
+3. Update examples to reflect changes
+4. Test manually with real transcripts
+
+#### Architecture Diagram Specification Skill
+
+**File:** `.github/skills/architecture-diagram-specification/SKILL.md`
+
+**When to modify:**
+- Add new diagram types (sequence, deployment)
+- Change component identification logic
+- Modify textual description format
+
+**Process:**
+1. Update output format
+2. Add new diagram type instructions
+3. Provide examples of new diagram types
+4. Test with diverse architectures
+
+#### Reference Architecture Generation Skill
+
+**File:** `.github/skills/reference-architecture-generation/SKILL.md`
+
+**When to modify:**
+- Change section structure (add/remove/reorder)
+- Modify writing style or tone
+- Adjust word count targets
+- Add new quality guidelines
+
+**Process:**
+1. Update output format with new sections
+2. Modify step-by-step execution instructions
+3. Update quality guidelines
+4. Test with multiple transcript types
+
+### Testing Reference Architecture Changes
+
+#### Unit Tests
+
+```bash
+# Test deep analysis validation
+pytest tests/test_validate_deep_analysis.py -v
+
+# Test technical depth scoring
+pytest tests/test_validate_reference_architecture.py -v
+
+# Test assembly
+pytest tests/test_assemble_reference_architecture.py -v
+
+# All reference architecture tests
+pytest tests/test_*reference*.py -v
+```
+
+#### Integration Testing
+
+1. **Find test video**: 15-40 min, 5+ CNCF projects, detailed architecture
+2. **Run agent workflow**: Follow all 18 steps manually
+3. **Check validation**: Verify all checkpoints pass/warn/fail as expected
+4. **Inspect output**: Review generated markdown for quality
+5. **Test edge cases**: Short video, few projects, missing diagrams
+
+#### Validation Testing
+
+Create test fixtures with various scores:
+
+```python
+# tests/test_validate_reference_architecture.py
+
+def test_scoring_high_quality():
+    """Test with high-quality reference architecture (score ≥0.70)"""
+    data = {
+        "cncf_projects": [
+            {"name": "Kubernetes", "description": "...detailed..."},
+            # 5+ projects total
+        ],
+        "sections": {
+            "executive_summary": "..." * 200,  # Good length
+            # All sections with quality content
+        },
+        # High-quality architecture data
+    }
+    
+    score = calculate_technical_depth_score(data)
+    assert score >= 0.70
+
+def test_scoring_borderline():
+    """Test borderline quality (0.60-0.69)"""
+    # Less detailed content
+    score = calculate_technical_depth_score(data)
+    assert 0.60 <= score < 0.70
+
+def test_scoring_insufficient():
+    """Test insufficient quality (<0.60)"""
+    # Minimal content
+    score = calculate_technical_depth_score(data)
+    assert score < 0.60
+```
+
+### Updating Documentation After Changes
+
+When you modify the reference architecture system:
+
+1. **README.md**: Update comparison table, quality thresholds, CLI commands
+2. **AGENTS.md**: Update technical depth scoring section, validation checkpoints
+3. **CONTRIBUTING.md**: This file - document new modification patterns
+4. **Agent workflow**: `.github/agents/reference-architecture-agent.md` - update steps
+5. **Skills**: Update relevant skill files if input/output changes
+
+### Common Modification Scenarios
+
+#### Scenario 1: Make Scoring More Stringent
+
+**Goal:** Increase quality bar for TAB submissions
+
+**Changes:**
+1. Increase PASS threshold from 0.70 to 0.75
+2. Increase WARN threshold from 0.60 to 0.65
+3. Increase CNCF project requirement from 5+ to 7+
+4. Increase word count minimum from 2000 to 2500
+
+**Testing:** Run against existing passing reference architectures, expect some to move to WARNING.
+
+#### Scenario 2: Add Security Focus
+
+**Goal:** Emphasize security in reference architectures
+
+**Changes:**
+1. Add 6th scoring dimension: "security_depth" (15% weight)
+2. Add security validation in `validate_deep_analysis.py`
+3. Make "Security Considerations" section longer (400-600 words)
+4. Add security patterns to deep analysis skill
+
+**Testing:** Test with security-focused and non-security videos.
+
+#### Scenario 3: Support Shorter Videos
+
+**Goal:** Allow 10-15 minute videos to generate reference architectures
+
+**Changes:**
+1. Lower transcript minimum from 2000 to 1500 characters
+2. Lower CNCF project requirement from 5+ to 4+
+3. Allow 1500-4000 word output range
+4. Adjust scoring for shorter content
+
+**Testing:** Test with 10-15 min videos that have good technical depth.
+
+---
+
 ## Best Practices
 
 ### For Skills

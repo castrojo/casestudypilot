@@ -1,0 +1,180 @@
+name: 🎬 Content Generation Request
+description: Generate a case study, reference architecture, or both from a CNCF YouTube video
+title: "[Content Request] "
+labels: ["automation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 👋 Welcome to the CNCF Content Generator!
+        
+        This template will automatically generate publication-ready content from a YouTube video.
+        
+        **What can be generated:**
+        - 📄 **Case Study** (500-1500 words, 5 sections, business-focused)
+        - 🏗️ **Reference Architecture** (2000-5000 words, 13 sections, technical-focused)
+        - 📦 **Both** (dual content for different audiences)
+        
+        **Requirements:**
+        - ✅ Video should be from CNCF events (KubeCon, meetups, etc.)
+        - ✅ Video should contain technical details about CNCF project usage
+        - ✅ Company featured is preferably a CNCF member
+
+  - type: dropdown
+    id: content_type
+    attributes:
+      label: 📝 Content Type
+      description: What type of content would you like generated?
+      options:
+        - Case Study (500-1500 words, business-focused, 2+ CNCF projects)
+        - Reference Architecture (2000-5000 words, technical deep-dive, 5+ CNCF projects)
+        - Both (generate both case study and reference architecture)
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ### 🤔 Which Should I Choose?
+        
+        **Choose Case Study if:**
+        - ✅ Video is 10-20 minutes, story-driven
+        - ✅ Target audience: business leaders, executives
+        - ✅ Focus: business outcomes and ROI
+        - ✅ Video mentions 2-3 CNCF projects
+        
+        **Choose Reference Architecture if:**
+        - ✅ Video is 15-40 minutes, architecture-focused
+        - ✅ Target audience: engineers, architects
+        - ✅ Focus: technical implementation details
+        - ✅ Video discusses 5+ CNCF projects with system diagrams
+        
+        **Choose Both if:**
+        - ✅ Video is 25+ minutes with comprehensive content
+        - ✅ Serves dual audiences (business + engineering)
+        - ✅ Want maximum value from high-quality source
+        
+        See [comparison guide](../../docs/CASE-STUDY-VS-REFERENCE-ARCHITECTURE.md) for details.
+
+  - type: input
+    id: youtube_url
+    attributes:
+      label: 📹 YouTube Video URL
+      description: Paste the full YouTube URL
+      placeholder: https://www.youtube.com/watch?v=VIDEO_ID
+    validations:
+      required: true
+
+  - type: input
+    id: company_name
+    attributes:
+      label: 🏢 Company Name (Optional)
+      description: If the company name isn't clear from the video, provide it here
+      placeholder: e.g., Intuit, Adobe, Spotify
+
+  - type: textarea
+    id: cncf_projects
+    attributes:
+      label: 🔧 Expected CNCF Projects (Optional)
+      description: List CNCF projects you know are discussed in the video
+      placeholder: |
+        - Kubernetes
+        - Prometheus
+        - Istio
+        - Flagger
+        - Argo CD
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: 📝 Additional Context (Optional)
+      description: Any additional information that might help the agent
+      placeholder: |
+        - Architecture patterns (e.g., multi-cluster, service mesh)
+        - Key metrics or outcomes discussed
+        - Special focus areas (e.g., security, observability)
+        - Any special considerations
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: ✅ Requirements Checklist
+      description: Please verify the following (check all that apply)
+      options:
+        - label: Video has high-quality captions/subtitles
+          required: true
+        - label: I understand the content will be auto-generated and may require human review
+          required: true
+        - label: The company featured is (to the best of my knowledge) a CNCF member
+          required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        
+        ## 🤖 What Happens Next?
+        
+        ### For Case Study
+        
+        1. **@case-study-agent will be automatically invoked**
+        2. Fetches video transcript and metadata
+        3. Validates transcript quality (≥1000 characters)
+        4. Verifies company is CNCF member
+        5. Analyzes transcript for CNCF projects (minimum 2)
+        6. Generates 5-section case study (500-1500 words)
+        7. Validates quality score (≥0.60)
+        8. Creates pull request with generated content
+        
+        **Processing time:** ~10 minutes  
+        **Output:** `case-studies/company-name.md` + 3 screenshots
+        
+        ### For Reference Architecture
+        
+        1. **@reference-architecture-agent will be automatically invoked**
+        2. Fetches video transcript and metadata
+        3. Validates transcript quality (≥2000 characters)
+        4. Performs deep analysis (5+ CNCF projects, 3 architecture layers)
+        5. Generates architecture diagram specifications
+        6. Generates 13-section reference architecture (2000-5000 words)
+        7. Validates technical depth score (≥0.70)
+        8. Creates pull request with generated content + TAB submission guide
+        
+        **Processing time:** ~20 minutes  
+        **Output:** `reference-architectures/company-platform.md` + 6+ screenshots
+        
+        ### For Both
+        
+        Both agents will run in parallel, generating both outputs independently.
+        
+        ---
+        
+        ## 📊 Quality Standards
+        
+        | Metric | Case Study | Reference Architecture |
+        |--------|-----------|----------------------|
+        | **Sections** | 5 | 13 |
+        | **Word Count** | 500-1500 | 2000-5000 |
+        | **CNCF Projects** | 2+ | 5+ |
+        | **Quality Threshold** | ≥0.60 | ≥0.70 |
+        | **Screenshots** | 3 | 6+ |
+        | **Validation Checkpoints** | 5 | 7 (5 critical) |
+        
+        ---
+        
+        ## 📚 Example Videos
+        
+        **Good for Case Study:**
+        - [Intuit's GitOps Journey](https://www.youtube.com/watch?v=V6L-xOUdoRQ) (20 min, 3 projects, story-driven)
+        
+        **Good for Reference Architecture:**
+        - Technical deep-dives (30+ min, 5+ projects, architecture diagrams)
+        - Platform implementation talks (detailed system architecture)
+        
+        **Good for Both:**
+        - Comprehensive talks (30+ min, business + technical depth)
+        
+        ---
+        
+        *Need help? Check [CASE-STUDY-VS-REFERENCE-ARCHITECTURE.md](../../docs/CASE-STUDY-VS-REFERENCE-ARCHITECTURE.md) or ask in the comments.*
