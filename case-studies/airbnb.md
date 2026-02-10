@@ -41,7 +41,7 @@ Key challenges:
 
 Airbnb embarked on a comprehensive migration journey to move their Spark workloads from Hadoop/YARN to **[Kubernetes](https://kubernetes.io)**, building a sophisticated platform that addressed all their existing challenges while maintaining operational excellence.
 
-The foundation of the new platform was **[Kubernetes](https://kubernetes.io)** for [container orchestration](https://glossary.cncf.io/container-orchestration/), with Karpenter as the autoscaler to enable intelligent, automated instance type selection based on workload requirements. Rather than adopting existing Spark operators (Cubeflow or Apache Spark), the team leveraged their existing centralized Spark submission service, which simplified deployment and maintained consistency with their established workflows.
+The foundation of the new platform was **[Kubernetes](https://kubernetes.io)** for [container orchestration](https://glossary.cncf.io/container-orchestration/), with Karpenter as the autoscaler to enable intelligent, automated instance type selection based on workload requirements. Rather than adopting existing Spark operators (Kubeflow Spark Operator or Apache's Spark Operator), the team leveraged their existing centralized Spark submission service, which simplified deployment and maintained consistency with their established workflows.
 
 To replace YARN's native shuffle service and enable dynamic resource allocation, Airbnb deployed Apache Celeborn as their remote shuffle service. After evaluating multiple options including Uber RSS and AWS cloud shuffle plugin, Celeborn was selected for its excellent documentation, strong community support, and compatibility with their Spark 3.1.1 version. The team deployed Celeborn in the same cluster as Spark workloads to leverage cluster-local DNS and simplify networking.
 
@@ -101,7 +101,6 @@ The key to Airbnb's success was their incremental, user-focused approach. Rather
 - **[Kubernetes](https://kubernetes.io)**: Container orchestration platform for running Spark workloads, replacing Hadoop/YARN
 - **[Argo CD](https://argoproj.github.io/cd/)**: GitOps continuous delivery for deploying Spark configurations and Helm charts to Kubernetes clusters
 - **[Helm](https://helm.sh)**: Package management for deploying Spark, Celeborn, and other components to Kubernetes
-- **[Prometheus](https://prometheus.io)**: Metrics collection and monitoring for Spark workloads on Kubernetes
 - **[OpenTelemetry](https://opentelemetry.io)**: Observability and log collection from Spark driver and executor containers
 
 **Key Metrics:**
