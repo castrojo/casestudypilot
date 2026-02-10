@@ -15,6 +15,7 @@ from casestudypilot.tools.validator import validate_case_study
 from casestudypilot.tools.screenshot_extractor import (
     extract_screenshots as extract_screenshots_fn,
 )
+from casestudypilot.tools.frame_extractor import extract_frame_at_timestamp
 from casestudypilot.validation import (
     validate_transcript as validate_transcript_fn,
     validate_company_name as validate_company_name_fn,
@@ -150,6 +151,47 @@ def extract_screenshots_cmd(
             console.print(f"  {status} {section.title()}: {screenshot['local_path']}")
             if not success:
                 console.print(f"    [red]Error:[/red] {screenshot.get('download_error')}")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+
+@app.command(name="extract-screenshot")
+def extract_screenshot_cmd(
+    video_url: str = typer.Argument(..., help="YouTube video URL"),
+    timestamp: int = typer.Argument(..., help="Timestamp in seconds"),
+    output: Path = typer.Argument(..., help="Output file path (e.g., screenshots/screenshot-1.jpg)"),
+):
+    """Extract single screenshot from video at specific timestamp.
+    
+    This command is designed for agent workflows that need to extract
+    individual frames. For batch extraction, use extract-screenshots instead.
+    
+    Example:
+        python -m casestudypilot extract-screenshot \\
+            'https://youtube.com/watch?v=VIDEO_ID' \\
+            450 \\
+            'screenshots/screenshot-1.jpg'
+    """
+    try:
+        console.print(f"[cyan]Extracting screenshot at {timestamp}s...[/cyan]")
+
+        # Create output directory
+        output.parent.mkdir(parents=True, exist_ok=True)
+
+        # Extract frame
+        result = extract_frame_at_timestamp(video_url=video_url, timestamp_seconds=timestamp, output_path=output)
+
+        if result["success"]:
+            file_size_kb = result.get("file_size", 0) / 1024
+            console.print(f"[green]✓ Screenshot saved to:[/green] {output}")
+            console.print(f"[dim]File size:[/dim] {file_size_kb:.1f} KB")
+            console.print(f"[dim]Method:[/dim] {result.get('method', 'frame_extraction')}")
+        else:
+            console.print(f"[red]✗ Screenshot extraction failed[/red]")
+            console.print(f"[red]Error:[/red] {result.get('error', 'Unknown error')}")
+            sys.exit(1)
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
