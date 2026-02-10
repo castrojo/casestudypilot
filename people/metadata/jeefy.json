@@ -1,0 +1,83 @@
+{
+  "name": "Jeffrey Sica",
+  "github_username": "jeefy",
+  "profile_version": 1.0,
+  "created_date": "2026-02-10T23:40:42.519117Z",
+  "updated_date": "2026-02-10T23:40:42.519117Z",
+  "current_role": "Kubernetes & OSS Advocate at CNCF",
+  "location": "Minneapolis, MN",
+  "organizations": [],
+  "social_profiles": {
+    "github": "https://github.com/jeefy",
+    "website": null
+  },
+  "video_ids_processed": [
+    "NMO_u_1OHIE"
+  ],
+  "stats": {
+    "total_talks": 1,
+    "years_active": {
+      "first": 2025,
+      "latest": 2025,
+      "span": 0
+    },
+    "total_speaking_minutes": 1,
+    "github_followers": 0,
+    "most_discussed_project": {},
+    "most_active_year": 2025
+  },
+  "expertise_areas": [
+    {
+      "area": "Kubernetes Community Management",
+      "context": "Contributor experience, community engagement, and ecosystem coordination",
+      "talk_count": 1,
+      "evidence": [
+        "CNCF project coordination",
+        "Event facilitation",
+        "Community liaison"
+      ]
+    },
+    {
+      "area": "Cloud Native Advocacy",
+      "context": "Promoting CNCF projects and cloud-native technologies through community engagement",
+      "talk_count": 1,
+      "evidence": [
+        "CNCF ecosystem advocacy",
+        "Project promotion",
+        "Developer community building"
+      ]
+    }
+  ],
+  "cncf_projects": [
+    {
+      "name": "Kubernetes",
+      "talk_count": 1,
+      "usage_context": "Community coordination, SIG involvement, and contributor experience improvements",
+      "first_mention": "2025-11",
+      "latest_mention": "2025-11"
+    },
+    {
+      "name": "CNCF Ecosystem",
+      "talk_count": 1,
+      "usage_context": "Project coordination and community engagement across all CNCF projects",
+      "first_mention": "2025-11",
+      "latest_mention": "2025-11"
+    }
+  ],
+  "talks": [
+    {
+      "video_id": "NMO_u_1OHIE",
+      "title": "",
+      "date": "",
+      "duration": 0,
+      "url": "",
+      "summary": "Closing remarks for project lightning talks at KubeCon + CloudNativeCon, thanking presenters and participants for their contributions. Highlights the project pavilion as a key venue for attendees to connect directly with CNCF projects, maintainers, and CNCF staff. Provides guidance on upcoming conference activities and opportunities for community engagement.",
+      "topics": [
+        "CNCF",
+        "KubeCon",
+        "Community Engagement",
+        "Cloud Native"
+      ]
+    }
+  ]
+}
