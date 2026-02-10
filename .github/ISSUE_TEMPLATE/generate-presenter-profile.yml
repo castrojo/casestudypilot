@@ -49,16 +49,6 @@ body:
         - Prometheus
         - Envoy
 
-  - type: checkboxes
-    id: requirements
-    attributes:
-      label: Requirements
-      options:
-        - label: Presenter has given talks at CNCF events
-          required: true
-        - label: Presenter name is consistent across videos
-          required: true
-
   - type: markdown
     attributes:
       value: |
