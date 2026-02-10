@@ -104,6 +104,10 @@ just dev
 ### `just publish`
 Publish the container image to GitHub Container Registry (GHCR).
 
+**Note:** Container images are automatically built and published via GitHub Actions on every push to `main`. See `.github/workflows/docker-publish.yml` for details.
+
+**For manual publishing:**
+
 **Prerequisites:**
 1. Create GitHub Personal Access Token (PAT) at https://github.com/settings/tokens
 2. Scopes needed: `write:packages`, `read:packages`
@@ -208,10 +212,10 @@ docker run --rm -it -v ./output:/output/data casestudypilot:latest --help
 
 ## Pulling from GHCR
 
-Once published, anyone can pull and use the image:
+Container images are automatically built and published to GHCR on every push to `main`. Anyone can pull and use the latest image without building:
 
 ```bash
-# Pull the image
+# Pull the latest image (updated automatically)
 podman pull ghcr.io/castrojo/casestudypilot:latest
 
 # Use it directly (no build needed!)
