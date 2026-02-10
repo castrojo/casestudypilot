@@ -255,6 +255,21 @@ python -m casestudypilot validate-reference-architecture ref_arch.json
 python -m casestudypilot assemble-reference-architecture ref_arch.json screenshots/*.jpg --output output.md
 ```
 
+**Presenter Profile Discovery:**
+```bash
+# Search CNCF YouTube channel for a presenter's videos
+python -m casestudypilot search-presenter "Jeffrey Sica" \
+  --github jeefy \
+  --months 24 \
+  --output presenter_videos.json
+
+# Features:
+# - Hybrid matching (strict + fuzzy) with confidence scoring
+# - Searches past 24 months by default
+# - GitHub username for cross-reference (optional)
+# - Exit codes: 0 (2+ videos), 1 (1 video - warning), 2 (0 videos - critical)
+```
+
 ### Output Examples
 
 **Case Study Output:**

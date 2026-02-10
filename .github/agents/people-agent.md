@@ -18,29 +18,98 @@ Generate comprehensive presenter profiles by:
 5. Generating polished profile markdown with fun statistics
 6. Following the same three-layer architecture (Agent → Skills → CLI Tools) as the case-study-agent
 
-## Workflow (16 Steps with Branching Logic)
+## Workflow (17 Steps with Branching Logic and Auto-Discovery)
 
-When assigned to an issue containing presenter information (name, GitHub username, video URLs), follow these steps exactly:
+When assigned to an issue containing presenter information (name and optional GitHub username), follow these steps exactly:
 
 ### Step 0: Pre-flight Validation
 - Verify Python environment is ready (`python --version`)
 - Verify all required packages are installed (`pip list | grep youtube-transcript-api`)
 - Check repository structure exists (`people/` directory)
-- Validate issue contains required fields (presenter name, at least 2 video URLs)
+- Validate issue contains required fields (presenter name)
 - **STOP if any validation fails** - Post error message to issue
 
 ### Step 1: Extract Presenter Information from Issue
 - Parse issue body for:
   - **Presenter Name** (required)
   - **GitHub Username** (optional but recommended)
-  - **Video URLs** (minimum 2 required)
-- Validate URL format (must be YouTube CNCF channel videos)
-- Count total videos provided
+- Validate presenter name is not empty/generic
 
 **Minimum Requirements:**
-- At least 2 video URLs
-- Presenter name not empty/generic
-- All URLs are valid YouTube format
+- Presenter name provided
+- Name is not a placeholder like "Test User" or "John Doe"
+
+### Step 1.5: Search CNCF YouTube Channel
+
+Execute presenter search to automatically discover videos:
+
+```bash
+python -m casestudypilot search-presenter "$PRESENTER_NAME" \
+  $([ -n "$GITHUB_USERNAME" ] && echo "--github $GITHUB_USERNAME") \
+  --months 24 \
+  --output presenter_search.json
+```
+
+**Check exit code and decide:**
+- Exit code 0 (SUCCESS) → 2+ videos found, continue to Step 2
+- Exit code 1 (WARNING) → Only 1 video found, log warning, continue to Step 2
+- Exit code 2 (CRITICAL) → No videos found, post error, close issue with label `search-failed-presenter`, STOP
+
+**Error Post Template (CRITICAL - No Videos Found):**
+```markdown
+❌ **Search Failed: No Videos Found**
+
+Could not find any CNCF presentations by **{presenter_name}** in the past 2 years.
+
+**Search Details:**
+- Presenter Name: "{presenter_name}"
+- GitHub Username: {github_username or "not provided"}
+- Months Searched: 24 (past 2 years)
+- Videos Found: 0
+
+**Possible Causes:**
+- Presenter name not mentioned in video titles or descriptions
+- Presenter has not given talks at CNCF events recently
+- Name spelling differs from how it appears in videos
+- Videos are older than 2 years
+
+**Action Required:**
+Please verify:
+1. Presenter name is spelled exactly as it appears in CNCF video titles
+2. Presenter has given talks at CNCF events (KubeCon, meetups, webinars)
+3. Talks occurred within the past 2 years
+
+**Alternative:**
+If the presenter has older talks or specific videos, please provide feedback for manual processing.
+```
+
+**Warning Log (Exit 1 - Only 1 Video):**
+```markdown
+⚠️ **Warning: Limited Videos Found**
+
+**Search Results:**
+- Presenter Name: "{presenter_name}"
+- Videos Found: 1
+- Strict Matches: {strict}
+- Fuzzy Matches: {fuzzy}
+
+**Impact:** Profile will be generated from a single video, which may result in:
+- Limited expertise area identification
+- Fewer CNCF projects discovered
+- Less comprehensive profile content
+
+**Recommendation:** Profile quality improves with multiple talks. Consider adding more videos later as they become available.
+
+Continuing with available data...
+```
+
+**Store search results for Step 4a:**
+```bash
+# Extract video URLs from search results
+jq -r '.videos[].url' presenter_search.json > video_urls.txt
+VIDEO_COUNT=$(wc -l < video_urls.txt)
+echo "Found $VIDEO_COUNT videos to process"
+```
 
 ### Step 2: Check if Profile Exists
 
@@ -94,8 +163,11 @@ Continuing with available data...
 ### Step 4a: Fetch All Videos and Validate Multi-Video Data
 
 ```bash
-python -m casestudypilot fetch-multi-video <url1> <url2> <url3> ... --output videos_data.json
+# Use video URLs from search results (Step 1.5)
+python -m casestudypilot fetch-multi-video $(cat video_urls.txt) --output videos_data.json
 ```
+
+**Note:** Videos come from automatic search in Step 1.5, not user input.
 
 - Fetches metadata, transcripts, and descriptions for all videos
 - Processes sequentially to avoid rate limits
@@ -118,7 +190,7 @@ python -m casestudypilot validate-multi-video videos_data.json
 The video data does not meet minimum quality requirements for profile generation.
 
 **Critical Issues:**
-- Total videos provided: {total}
+- Total videos found: {total}
 - Successfully fetched: {succeeded}
 - Failed fetches: {failed}
 
@@ -126,7 +198,7 @@ The video data does not meet minimum quality requirements for profile generation
 [List specific issues from validation output]
 
 **Possible Causes:**
-- Too few videos successfully fetched (minimum 2 required)
+- Too few videos successfully fetched (minimum 1 required)
 - All transcripts are empty or too short
 - Videos may not have captions enabled
 - API failures or rate limiting
@@ -400,10 +472,18 @@ EXISTING_METADATA="people/<github-username>.json"
 ### Step 4b: Identify New Videos
 
 ```bash
-# Compare new URLs against existing metadata
-python -m casestudypilot identify-new-videos existing_metadata.json <url1> <url2> ... --output new_videos_list.json
+# Re-run search to get latest videos
+python -m casestudypilot search-presenter "$PRESENTER_NAME" \
+  $([ -n "$GITHUB_USERNAME" ] && echo "--github $GITHUB_USERNAME") \
+  --months 24 \
+  --output new_search_results.json
+
+# Compare search results against existing metadata
+python -m casestudypilot identify-new-videos existing_metadata.json new_search_results.json --output new_videos_list.json
 ```
 
+- Re-searches CNCF channel for presenter's latest videos
+- Compares against existing profile metadata  
 - Creates list of video URLs not in existing profile
 - **If no new videos:** Post message to issue, skip to Step 12 (no update needed)
 
@@ -411,11 +491,12 @@ python -m casestudypilot identify-new-videos existing_metadata.json <url1> <url2
 ```markdown
 ✅ **Profile Up-to-Date**
 
-All provided videos are already in the existing profile for `<presenter-name>`.
+All videos found in CNCF channel are already in the existing profile for `<presenter-name>`.
 
 **Current Profile:**
 - Total talks: {count}
 - Last updated: {date}
+- Last search: {current_date}
 
 No changes needed. Closing issue.
 ```
@@ -423,7 +504,11 @@ No changes needed. Closing issue.
 ### Step 5b: Fetch New Videos Only and Validate
 
 ```bash
-python -m casestudypilot fetch-multi-video <new-url1> <new-url2> ... --output new_videos_data.json
+# Extract new video URLs
+jq -r '.new_videos[].url' new_videos_list.json > new_video_urls.txt
+
+# Fetch new videos
+python -m casestudypilot fetch-multi-video $(cat new_video_urls.txt) --output new_videos_data.json
 ```
 
 **Validate Multi-Video Data:**
@@ -878,8 +963,8 @@ The Python environment is configured via GitHub Actions workflow: `.github/workf
 **Minimum Requirements (Fail-Fast Checkpoints):**
 - Minimum quality score: **0.60** (CRITICAL failure below)
 - Target quality score: **0.70+** (WARNING if below)
-- Minimum talk count: **2**
-- Minimum successful video fetches: **2**
+- Minimum talk count: **1** (acceptable with warning)
+- Minimum successful video fetches: **1** (acceptable with warning)
 - Biography minimum length: **100 characters** (CRITICAL), **300 characters** (WARNING)
 - Minimum CNCF projects: **1** (CRITICAL), **2** (WARNING)
 
@@ -901,7 +986,7 @@ The Python environment is configured via GitHub Actions workflow: `.github/workf
 **Quality Scoring Factors (5 dimensions, equal weight):**
 1. **Structure completeness (0.2):** All required sections present
 2. **Biography depth (0.2):** Length ≥300 words, coherent, sourced
-3. **Talk coverage (0.2):** ≥2 talks, quality summaries
+3. **Talk coverage (0.2):** ≥1 talk, quality summaries (≥2 talks recommended)
 4. **Expertise identification (0.2):** ≥2 CNCF projects, clear themes
 5. **Factual consistency (0.2):** No conflicts, traceable information
 
@@ -909,20 +994,23 @@ The Python environment is configured via GitHub Actions workflow: `.github/workf
 
 **Agent MUST STOP at these points (CRITICAL failures):**
 
-1. **Step 4a/5b**: Fewer than 2 videos successfully fetched OR all transcripts empty
-2. **Step 5a/6b (Presenter)**: Presenter name not found in ≥50% of videos OR conflicting names detected
-3. **Step 5a/6b (Biography)**: Placeholder text OR biography < 100 chars OR fabricated information
-4. **Step 6a/7b**: No CNCF projects identified OR no expertise areas OR missing talk summaries
-5. **Step 8**: Quality score < 0.60 OR missing required sections
+1. **Step 1.5**: No videos found in CNCF channel search
+2. **Step 4a/5b**: All video fetches failed OR all transcripts empty
+3. **Step 5a/6b (Presenter)**: Presenter name not found in ≥50% of videos OR conflicting names detected
+4. **Step 5a/6b (Biography)**: Placeholder text OR biography < 100 chars OR fabricated information
+5. **Step 6a/7b**: No CNCF projects identified OR no expertise areas OR missing talk summaries
+6. **Step 8**: Quality score < 0.60 OR missing required sections
 
 **Agent CONTINUES WITH WARNING at these points:**
 
-1. **Step 4a/5b**: Some videos failed to fetch (but ≥2 succeeded)
-2. **Step 5a/6b (Biography)**: Biography < 300 chars OR limited source data
-3. **Step 6a/7b**: Only 1 CNCF project identified OR limited recurring themes
-4. **Step 8**: Quality score 0.60-0.69 (marginal quality)
+1. **Step 1.5**: Only 1 video found in search (minimum met but limited)
+2. **Step 4a/5b**: Some videos failed to fetch (but ≥1 succeeded)
+3. **Step 5a/6b (Biography)**: Biography < 300 chars OR limited source data
+4. **Step 6a/7b**: Only 1 CNCF project identified OR limited recurring themes
+5. **Step 8**: Quality score 0.60-0.69 (marginal quality)
 
 **Issue Labels for Validation Failures:**
+- `search-failed-presenter`: No videos found in CNCF channel
 - `validation-failed-videos`: Insufficient video data
 - `validation-failed-presenter`: Presenter name issues
 - `validation-failed-biography`: Biography quality issues
@@ -936,7 +1024,11 @@ The Python environment is configured via GitHub Actions workflow: `.github/workf
 ```
 Issue Created
     ↓
-Step 0-2: Pre-flight, Extract Info, Check Existence
+Step 0-1: Pre-flight, Extract Info
+    ↓
+Step 1.5: Search CNCF YouTube Channel (auto-discovery)
+    ↓
+Step 2: Check Existence
     ↓
     ├─── Profile Exists? ──NO──→ NEW PROFILE PATH
     │                              Steps 3a-7a:
@@ -949,7 +1041,7 @@ Step 0-2: Pre-flight, Extract Info, Check Existence
     └─── Profile Exists? ──YES──→ UPDATE PROFILE PATH
                                    Steps 3b-7b:
                                    - Load existing (3b)
-                                   - Identify new videos (4b)
+                                   - Re-search + identify new videos (4b)
                                    - Fetch new videos + validate (5b)
                                    - Validate update safety (6b)
                                    - Re-aggregate all talks + validate
@@ -974,11 +1066,12 @@ COMMON PATH (Steps 8-12)
 
 ## Important Notes
 
-1. **Branching workflow is key** - Different paths for new vs. update profiles
-2. **Minimum 2 videos required** - Profiles need multiple talks for meaningful aggregation
-3. **Fail-fast validation at 5 checkpoints** - Prevents wasting compute and hallucination
-4. **Biography must be factual** - Only synthesize from verifiable sources (GitHub, video descriptions, transcripts)
-5. **Atomic commits required** - Both markdown and JSON metadata in single commit
+1. **Automatic video discovery** - No manual URLs needed, agent searches CNCF channel
+2. **Branching workflow is key** - Different paths for new vs. update profiles
+3. **Minimum 1 video acceptable** - Profiles work with single talk (warning issued, 2+ recommended)
+4. **Fail-fast validation at 6 checkpoints** - Prevents wasting compute and hallucination
+5. **Biography must be factual** - Only synthesize from verifiable sources (GitHub, video descriptions, transcripts)
+6. **Atomic commits required** - Both markdown and JSON metadata in single commit
 6. **Fun stats are critical** - They make profiles engaging and quantify contributions
 7. **Quality scoring is multi-dimensional** - 5 factors with equal weight
 8. **Updates must be safe** - Validate presenter consistency before merging new data

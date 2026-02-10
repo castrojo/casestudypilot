@@ -61,6 +61,12 @@ echo "📹 Video URL: $VIDEO_URL"
 # Fetch video data
 python -m casestudypilot youtube-data "$VIDEO_URL" > video_data.json
 
+# Update issue title to match video title
+VIDEO_TITLE=$(jq -r '.title' video_data.json)
+gh issue edit "$ISSUE_NUMBER" --title "$VIDEO_TITLE"
+
+echo "✅ Updated issue title to: $VIDEO_TITLE"
+
 # Validate transcript quality (min 2000 chars for reference architectures)
 python -m casestudypilot validate-transcript video_data.json
 EXIT_CODE=$?

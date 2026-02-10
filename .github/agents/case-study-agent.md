@@ -41,6 +41,17 @@ python -m casestudypilot youtube-data "<youtube-url>"
 - Creates `video_data.json`
 - Contains transcript, metadata, duration
 
+**Update Issue Title:**
+
+After successfully fetching video data, update the issue title to match the video title:
+
+```bash
+VIDEO_TITLE=$(jq -r '.title' video_data.json)
+gh issue edit "$ISSUE_NUMBER" --title "$VIDEO_TITLE"
+```
+
+This ensures the issue title reflects the actual video content being processed.
+
 **Validate Transcript Quality:**
 ```bash
 python -m casestudypilot validate-transcript video_data.json

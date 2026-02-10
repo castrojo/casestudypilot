@@ -758,6 +758,72 @@ def fetch_multi_video_cmd(
         sys.exit(1)
 
 
+@app.command(name="search-presenter")
+def search_presenter_cmd(
+    presenter_name: str = typer.Argument(..., help="Presenter name to search for"),
+    github: Optional[str] = typer.Option(None, "--github", help="GitHub username for cross-reference"),
+    months: int = typer.Option(24, "--months", help="Search past N months (default: 24)"),
+    output: Path = typer.Option(Path("presenter_search.json"), "--output", "-o", help="Output JSON file path"),
+):
+    """Search CNCF YouTube channel for presenter's videos."""
+    from casestudypilot.tools.presenter_search import search_presenter_videos
+
+    try:
+        console.print(f"[cyan]Searching CNCF channel for:[/cyan] {presenter_name}")
+        console.print(f"[dim]Time range:[/dim] Past {months} months")
+        if github:
+            console.print(f"[dim]GitHub username:[/dim] {github}")
+
+        result = search_presenter_videos(
+            presenter_name=presenter_name,
+            github_username=github,
+            months=months,
+        )
+
+        # Write to file
+        with open(output, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
+
+        # Display summary
+        videos_found = result["videos_found"]
+        metadata = result["search_metadata"]
+
+        console.print(f"\n[bold]Search Results:[/bold]")
+        console.print(f"[dim]Videos found:[/dim] {videos_found}")
+        console.print(f"[dim]Strict matches:[/dim] {metadata['strict_matches']}")
+        console.print(f"[dim]Fuzzy matches:[/dim] {metadata['fuzzy_matches']}")
+
+        if videos_found > 0:
+            console.print(f"\n[green]✓ Found {videos_found} video(s)[/green]")
+            console.print(f"[green]✓ Results saved to:[/green] {output}")
+
+            # Show top 3 matches
+            console.print("\n[bold]Top matches:[/bold]")
+            for i, video in enumerate(result["videos"][:3], 1):
+                confidence = video["match_confidence"]
+                method = video["match_method"]
+                location = video["match_location"]
+                console.print(f"  {i}. {video['title']}")
+                console.print(f"     [dim]Confidence: {confidence:.2f} ({method} match in {location})[/dim]")
+        else:
+            console.print(f"\n[yellow]No videos found for '{presenter_name}'[/yellow]")
+            console.print(f"[yellow]Results saved to:[/yellow] {output}")
+
+        # Exit codes
+        if videos_found == 0:
+            console.print("\n[red]❌ No videos found[/red]")
+            sys.exit(2)  # CRITICAL - cannot proceed
+        elif videos_found == 1:
+            console.print("\n[yellow]⚠️ Only 1 video found[/yellow]")
+            sys.exit(1)  # WARNING - low video count but acceptable
+        else:
+            sys.exit(0)  # SUCCESS
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
 @app.command(name="validate-presenter")
 def validate_presenter_cmd(
     presenter_name: str = typer.Argument(..., help="Presenter name to validate"),
