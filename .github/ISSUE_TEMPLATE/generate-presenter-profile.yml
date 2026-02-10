@@ -1,0 +1,119 @@
+name: Generate Presenter Profile
+description: Generate a comprehensive presenter profile from CNCF YouTube presentations
+labels: ["presenter-profile"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Generate a comprehensive presenter profile showcasing CNCF community contributions and expertise.
+        
+        **Output:** Markdown profile with biography, expertise areas, talk highlights, and fun statistics.
+        
+        **Target audience:** CNCF community, contributor recognition
+        
+        **Requirements:**
+        - At least 1 CNCF YouTube video
+        - Videos have captions/subtitles enabled
+        - Presenter appears consistently across videos
+        - Videos contain technical CNCF content
+
+  - type: input
+    id: presenter_name
+    attributes:
+      label: Presenter Name
+      description: Full name of the presenter
+      placeholder: e.g., Jeffrey Sica, Kelsey Hightower
+    validations:
+      required: true
+
+  - type: input
+    id: github_username
+    attributes:
+      label: GitHub Username (Optional)
+      description: Provides better biographical data and profile linking
+      placeholder: e.g., jeefy, kelseyhightower
+
+  - type: textarea
+    id: video_urls
+    attributes:
+      label: Video URLs
+      description: YouTube URLs of CNCF presentations (minimum 1 video)
+      placeholder: |
+        https://www.youtube.com/watch?v=VIDEO_ID_1
+        https://www.youtube.com/watch?v=VIDEO_ID_2
+        https://www.youtube.com/watch?v=VIDEO_ID_3
+    validations:
+      required: true
+
+  - type: textarea
+    id: cncf_projects
+    attributes:
+      label: Expected CNCF Projects (Optional)
+      description: CNCF projects discussed in the videos
+      placeholder: |
+        - Kubernetes
+        - Prometheus
+        - Envoy
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      options:
+        - label: Videos have captions/subtitles enabled
+          required: true
+        - label: All videos feature the same presenter
+          required: true
+        - label: Videos contain technical CNCF content
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Processing Pipeline
+        
+        The people-agent will execute a 16-step workflow with branching logic:
+        
+        **New Profile Path:**
+        1. Fetch GitHub profile data
+        2. Fetch all videos and validate multi-video data
+        3. Extract biography and validate presenter name
+        4. Analyze all talks for expertise, CNCF projects, and themes
+        5. Generate profile content
+        6. Validate profile quality (≥0.60 score required)
+        7. Assemble markdown with fun statistics
+        8. Create pull request
+        
+        **Update Profile Path (if profile exists):**
+        1. Load existing profile
+        2. Identify new videos only
+        3. Fetch new videos and validate
+        4. Validate profile update safety
+        5. Re-aggregate all talks with merged data
+        6. Update profile content
+        7. Validate quality
+        8. Create pull request with change summary
+        
+        **Processing time:** Approximately 15 minutes for new profiles
+        
+        **Output location:** `people/github-username.md` with JSON metadata
+        
+        ## Validation Checkpoints
+        
+        The workflow includes 5 critical validation checkpoints:
+        - Multi-video data quality (minimum 1 video with transcript ≥1000 chars)
+        - Presenter name verification (found in ≥50% of videos)
+        - Biography quality (minimum 100 chars, no placeholders)
+        - Talk aggregation (≥1 CNCF project, valid summaries)
+        - Overall quality score (≥0.60 required, ≥0.70 target)
+        
+        ## Critical Failure Scenarios
+        
+        The workflow will stop and post an error if:
+        - No videos successfully fetched or all transcripts empty
+        - Presenter name not found or conflicting names detected
+        - Biography contains placeholders or fabricated information
+        - No CNCF projects identified in any talk
+        - Quality score below 0.60
+        - Profile update conflict (different presenter in new videos)

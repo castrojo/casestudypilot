@@ -1,0 +1,125 @@
+name: Organization Content Request
+description: Generate case studies or reference architectures for all of an organization's CNCF talks
+labels: ["organization-request"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Generate publication-ready content from all talks by an organization on the CNCF YouTube channel.
+        
+        **What happens:**
+        - Searches CNCF YouTube channel for organization's talks (past 18 months)
+        - Creates individual sub-issues for each video found
+        - Existing agents process each video automatically
+        - This epic tracks overall progress
+        
+        **Requirements:**
+        - Organization has given talks at CNCF events (KubeCon, meetups, etc.)
+        - Organization name is mentioned in video titles
+        - Videos have captions/subtitles enabled
+
+  - type: input
+    id: organization_name
+    attributes:
+      label: Organization Name
+      description: Full legal name or common name used in video titles
+      placeholder: e.g., Intuit, Adobe, Spotify, Capital One
+    validations:
+      required: true
+
+  - type: dropdown
+    id: content_type
+    attributes:
+      label: Content Type
+      description: What type of content should be generated for all videos found?
+      options:
+        - Case Study (500-1500 words, business-focused)
+        - Reference Architecture (2000-5000 words, technical deep-dive)
+    validations:
+      required: true
+
+  - type: textarea
+    id: organization_aliases
+    attributes:
+      label: Name Variations (Optional)
+      description: Alternative names or abbreviations used in video titles
+      placeholder: |
+        e.g., for "International Business Machines":
+        - IBM
+        - IBM Corporation
+        - International Business Machines Corporation
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context (Optional)
+      description: Any additional information about the organization
+      placeholder: |
+        - Known speakers or team names
+        - Specific technology focus areas
+        - Special considerations
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Processing Pipeline
+        
+        The organization-search-agent will execute the following workflow:
+        
+        1. Extract organization name and aliases from issue
+        2. Search CNCF YouTube channel using yt-dlp
+        3. Apply fuzzy matching to find organization mentions in titles
+        4. Filter videos from past 18 months
+        5. Create individual sub-issues for each video found
+        6. Apply organizational labels (org/organization-name, epic-NUMBER)
+        7. Invoke appropriate content generation agent per sub-issue
+        8. Track progress in this parent epic issue
+        
+        **Search scope:** CNCF YouTube channel, past 18 months
+        
+        **Output:** Multiple sub-issues, each generating case study or reference architecture
+        
+        ## What Happens Next
+        
+        After you create this issue:
+        1. Organization-search-agent automatically searches for videos
+        2. One sub-issue created per video found
+        3. Each sub-issue triggers case-study-agent or reference-architecture-agent
+        4. Pull requests created for each completed content piece
+        5. This epic updated with progress tracking
+        
+        ## Sub-Issue Format
+        
+        Each sub-issue will include:
+        - Video URL and metadata
+        - Extracted company name from title
+        - Expected content type (from your selection)
+        - Labels: content type, org/organization-name, epic-NUMBER
+        - Automatic agent assignment
+        
+        ## Expected Timeline
+        
+        **Search phase:** 5-10 minutes (depends on number of videos found)
+        
+        **Content generation:** 10-20 minutes per video
+        - Case studies: ~10 minutes each
+        - Reference architectures: ~20 minutes each
+        
+        **Example:** Organization with 5 videos requesting case studies
+        - Search: 5 minutes
+        - Generation: 50 minutes (5 videos × 10 min)
+        - Total: ~55 minutes
+        
+        ## Fuzzy Matching
+        
+        The agent uses fuzzy matching to find organization mentions:
+        - Case-insensitive search
+        - Handles common suffixes (Inc, Corp, LLC)
+        - Matches partial names and abbreviations
+        - Uses 80% similarity threshold
+        
+        This helps find videos like:
+        - "Intuit's Journey to Kubernetes"
+        - "How Adobe Scaled with CNCF"
+        - "Spotify's Service Mesh Architecture"
