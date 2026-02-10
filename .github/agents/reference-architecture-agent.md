@@ -22,7 +22,7 @@ This agent extends the casestudypilot framework to generate reference architectu
 - Architecture diagrams with component specifications
 - Suitable for CNCF TAB submission
 
-## Workflow (18 Steps with 7 Validation Checkpoints)
+## Workflow (19 Steps with 7 Validation Checkpoints)
 
 ### Step 1: Pre-Flight Checks
 

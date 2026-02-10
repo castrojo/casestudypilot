@@ -32,6 +32,7 @@ from casestudypilot.tools.github_client import fetch_github_profile, get_profile
 from casestudypilot.tools.multi_video_processor import fetch_multi_video_data
 from casestudypilot.tools.profile_assembler import assemble_presenter_profile
 from casestudypilot.tools.issue_parser import parse_issue
+from casestudypilot.tools.update_readme_index import update_readme_index
 # TODO: Implement these validation modules (future tasks)
 # from casestudypilot.validation.presenter import validate_presenter
 # from casestudypilot.validation.biography import validate_biography
@@ -1165,6 +1166,68 @@ def orchestrate_cmd():
         console.print("")
         console.print("[dim]═══════════════════════════════════════════════════════════[/dim]")
 
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        import traceback
+
+        console.print(f"[red]{traceback.format_exc()}[/red]")
+        sys.exit(2)
+
+
+@app.command(name="update-readme")
+def update_readme_cmd(dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without writing")):
+    """Update README with current generated content index.
+
+    Scans case-studies/ and reference-architectures/ directories
+    and updates the README content lists automatically.
+
+    Examples:
+        python -m casestudypilot update-readme
+        python -m casestudypilot update-readme --dry-run
+    """
+    try:
+        console.print("[cyan]📚 Updating README content index...[/cyan]\n")
+
+        # Run the update
+        result = update_readme_index(dry_run=dry_run)
+
+        # Display results
+        case_count = result["case_studies_count"]
+        ref_count = result["reference_architectures_count"]
+
+        if dry_run:
+            console.print("[yellow]DRY RUN MODE - No files will be modified[/yellow]\n")
+
+        console.print(f"[green]✓ Found {case_count} case studies[/green]")
+        console.print(f"[green]✓ Found {ref_count} reference architectures[/green]\n")
+
+        if case_count > 0:
+            console.print("[bold]Case Studies (sorted by newest):[/bold]")
+            # Note: The actual list is in the README, we just show count here
+            console.print(f"  {case_count} files found\n")
+
+        if ref_count > 0:
+            console.print("[bold]Reference Architectures (sorted by newest):[/bold]")
+            console.print(f"  {ref_count} files found\n")
+
+        if result["updated"] and not dry_run:
+            console.print("[green]✓ README.md updated successfully[/green]")
+        elif dry_run:
+            console.print("[yellow]README.md would be updated (dry run)[/yellow]")
+        else:
+            console.print("[yellow]⚠ README.md not updated (no changes needed)[/yellow]")
+
+        # Exit code 0 for success
+        sys.exit(0)
+
+    except FileNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        console.print("[yellow]Hint: Run this command from the repository root[/yellow]")
+        sys.exit(2)
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        console.print("[yellow]Hint: README.md may be missing marker comments[/yellow]")
+        sys.exit(2)
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         import traceback

@@ -18,11 +18,42 @@ Transform YouTube video URLs into publication-ready case studies by:
 5. Extracting contextual screenshots
 6. Generating polished markdown
 
-## Workflow (14 Steps with Validation)
+## Workflow (15 Steps with Validation)
 
 When assigned to an issue containing a YouTube URL, follow these steps exactly:
 
 ### Step 0: Pre-flight Validation
+
+**Git Branch Validation:**
+```bash
+# CRITICAL: Ensure on main branch before starting
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  echo "❌ Error: Not on main branch (currently on: $CURRENT_BRANCH)"
+  echo "Action required: git checkout main"
+  exit 2
+fi
+
+# Ensure working directory is clean
+if [ -n "$(git status --porcelain)" ]; then
+  echo "❌ Error: Working directory not clean"
+  echo "Action required: Commit or stash changes"
+  exit 2
+fi
+
+# Ensure up to date with remote
+git fetch origin
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
+if [ "$LOCAL" != "$REMOTE" ]; then
+  echo "⚠️ Warning: Local main is not up to date with remote"
+  echo "Recommended: git pull origin main"
+fi
+
+echo "✅ Git branch validation passed (on main, clean working directory)"
+```
+
+**Environment Validation:**
 - Verify Python environment is ready (`python --version`)
 - Verify all required packages are installed (`pip list | grep youtube-transcript-api`)
 - Check repository structure exists (`case-studies/` directory)
@@ -305,8 +336,30 @@ python -m casestudypilot validate case-studies/<company>.md
 **Note:** The validation output now includes warnings from all previous validation steps for comprehensive quality assessment.
 
 ### Step 11: Create Branch
-- Branch name: `case-study-<company>-<video-id>`
-- Example: `case-study-intuit-V6L-xOUdoRQ`
+
+**Prerequisites (verified in Step 0):**
+- On main branch
+- Working directory clean
+- Up to date with origin/main (recommended)
+
+**Create Feature Branch:**
+```bash
+# Double-check we're on main (safety check)
+git checkout main
+
+# Create and switch to feature branch
+COMPANY_SLUG=$(echo "$COMPANY_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+VIDEO_ID=$(echo "$VIDEO_URL" | grep -oP '(?<=v=)[^&]+')
+BRANCH_NAME="case-study-${COMPANY_SLUG}-${VIDEO_ID}"
+
+git checkout -b "$BRANCH_NAME"
+
+echo "✅ Created branch: $BRANCH_NAME"
+echo "✅ Base commit: $(git rev-parse HEAD)"
+echo "✅ Base branch: main"
+```
+
+**Important:** This branch should contain ONLY files for this case study. Never create a branch from another feature branch.
 
 ### Step 12: Atomic Commit with Markdown + Images
 - **Single atomic commit** containing:
