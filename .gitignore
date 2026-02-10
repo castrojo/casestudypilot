@@ -54,3 +54,6 @@ screenshots.json
 # Container artifacts
 *.tar
 *.tar.gz
+
+# Worktrees
+.worktrees/
