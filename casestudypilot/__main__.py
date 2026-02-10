@@ -30,6 +30,7 @@ from casestudypilot.tools.assemble_reference_architecture import main as assembl
 from casestudypilot.tools.github_client import fetch_github_profile, get_profile_completeness
 from casestudypilot.tools.multi_video_processor import fetch_multi_video_data
 from casestudypilot.tools.profile_assembler import assemble_presenter_profile
+from casestudypilot.tools.issue_parser import parse_issue
 # TODO: Implement these validation modules (future tasks)
 # from casestudypilot.validation.presenter import validate_presenter
 # from casestudypilot.validation.biography import validate_biography
@@ -62,6 +63,57 @@ def youtube_data(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
+
+
+@app.command(name="parse-issue")
+def parse_issue_cmd(
+    issue_number: int = typer.Argument(..., help="GitHub issue number"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output JSON file path"),
+):
+    """Parse GitHub issue and extract content generation metadata.
+
+    Extracts YouTube URL, content type, company name, and other metadata
+    from GitHub issues created via content generation templates.
+
+    Example:
+        python -m casestudypilot parse-issue 42
+        python -m casestudypilot parse-issue 42 --output issue_data.json
+    """
+    try:
+        console.print(f"[cyan]Parsing issue:[/cyan] #{issue_number}")
+        result = parse_issue(issue_number)
+
+        # Write to file if specified
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2)
+            console.print(f"[green]✓ Issue data saved to:[/green] {output}")
+
+        # Display result
+        console.print(f"\n[bold]Issue #{result['issue_number']}[/bold]")
+        console.print(f"[dim]Title:[/dim] {result['title']}")
+        console.print(f"[dim]Content Type:[/dim] {result['content_type']}")
+        console.print(f"[dim]Video URL:[/dim] {result['video_url']}")
+
+        if result.get("company_name"):
+            console.print(f"[dim]Company:[/dim] {result['company_name']}")
+        else:
+            console.print(f"[dim]Company:[/dim] [yellow]Not specified (will extract from video)[/yellow]")
+
+        # Output JSON to stdout if no file specified
+        if not output:
+            console.print(f"\n[dim]JSON output:[/dim]")
+            console.print(json.dumps(result, indent=2))
+
+    except ValueError as e:
+        console.print(f"[red]Validation Error:[/red] {e}")
+        sys.exit(2)
+    except RuntimeError as e:
+        console.print(f"[red]Runtime Error:[/red] {e}")
+        sys.exit(2)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
 
 
 @app.command()
