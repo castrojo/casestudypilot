@@ -1,7 +1,7 @@
 ---
 name: content-orchestrator
-description: Discover and process open content generation requests (case studies, reference architectures, presenter profiles)
-version: 1.0.0
+description: Discover and process open content generation requests (case studies, reference architectures, presenter profiles, organization epics)
+version: 1.1.0
 trigger: Manual invocation or scheduled execution
 ---
 
@@ -27,9 +27,10 @@ This agent serves as the **universal dispatcher/orchestrator** for all casestudy
 | Case Study | `case-study` | `case-study-agent` | ✅ v2.2.0 |
 | Reference Architecture | `reference-architecture` | `reference-architecture-agent` | ✅ v1.0.0 |
 | Presenter Profile | `presenter-profile` | `people-agent` | ⚠️ Not yet implemented (epic #17) |
+| Organization Epic | `organization-request` | `organization-search-agent` | ⚠️ Not yet implemented (epic #24) |
 
 **Key Responsibilities:**
-- Multi-type issue discovery and filtering
+- Multi-type issue discovery and filtering (including organization epics that spawn sub-issues)
 - Preventing duplicate processing
 - Sequential or parallel orchestration
 - Error aggregation and reporting
@@ -107,8 +108,18 @@ PRESENTER_ISSUES=$(gh issue list \
 PRESENTER_COUNT=$(echo "$PRESENTER_ISSUES" | jq 'length')
 echo "👤 Presenter Profiles: $PRESENTER_COUNT open request(s)"
 
+# Fetch organization epic issues
+ORG_EPIC_ISSUES=$(gh issue list \
+  --label "organization-request" \
+  --state open \
+  --json number,title,labels,createdAt,body \
+  --limit 100)
+
+ORG_EPIC_COUNT=$(echo "$ORG_EPIC_ISSUES" | jq 'length')
+echo "🏢 Organization Epics: $ORG_EPIC_COUNT open request(s)"
+
 # Calculate total
-TOTAL_COUNT=$((CASE_STUDY_COUNT + REF_ARCH_COUNT + PRESENTER_COUNT))
+TOTAL_COUNT=$((CASE_STUDY_COUNT + REF_ARCH_COUNT + PRESENTER_COUNT + ORG_EPIC_COUNT))
 
 if [ $TOTAL_COUNT -eq 0 ]; then
   echo ""
@@ -124,12 +135,14 @@ echo ""
 echo "$CASE_STUDY_ISSUES" > discovered_case_studies.json
 echo "$REF_ARCH_ISSUES" > discovered_ref_archs.json
 echo "$PRESENTER_ISSUES" > discovered_presenters.json
+echo "$ORG_EPIC_ISSUES" > discovered_org_epics.json
 ```
 
 **Output:** 
 - `discovered_case_studies.json`
 - `discovered_ref_archs.json`
 - `discovered_presenters.json`
+- `discovered_org_epics.json`
 
 ---
 
@@ -164,12 +177,14 @@ filter_processed() {
 PENDING_CASE_STUDIES=$(filter_processed discovered_case_studies.json)
 PENDING_REF_ARCHS=$(filter_processed discovered_ref_archs.json)
 PENDING_PRESENTERS=$(filter_processed discovered_presenters.json)
+PENDING_ORG_EPICS=$(filter_processed discovered_org_epics.json)
 
 # Count pending issues
 PENDING_CS_COUNT=$(echo "$PENDING_CASE_STUDIES" | jq 'length')
 PENDING_RA_COUNT=$(echo "$PENDING_REF_ARCHS" | jq 'length')
 PENDING_PP_COUNT=$(echo "$PENDING_PRESENTERS" | jq 'length')
-PENDING_TOTAL=$((PENDING_CS_COUNT + PENDING_RA_COUNT + PENDING_PP_COUNT))
+PENDING_OE_COUNT=$(echo "$PENDING_ORG_EPICS" | jq 'length')
+PENDING_TOTAL=$((PENDING_CS_COUNT + PENDING_RA_COUNT + PENDING_PP_COUNT + PENDING_OE_COUNT))
 
 if [ $PENDING_TOTAL -eq 0 ]; then
   echo "ℹ️ All discovered issues are already processed or in-progress"
@@ -180,11 +195,13 @@ fi
 echo "$PENDING_CASE_STUDIES" > pending_case_studies.json
 echo "$PENDING_REF_ARCHS" > pending_ref_archs.json
 echo "$PENDING_PRESENTERS" > pending_presenters.json
+echo "$PENDING_ORG_EPICS" > pending_org_epics.json
 
 echo "✅ Pending issues ready for processing:"
 echo "   📄 Case Studies: $PENDING_CS_COUNT"
 echo "   🏗️  Reference Architectures: $PENDING_RA_COUNT"
 echo "   👤 Presenter Profiles: $PENDING_PP_COUNT"
+echo "   🏢 Organization Epics: $PENDING_OE_COUNT"
 echo "   📋 Total: $PENDING_TOTAL"
 echo ""
 
@@ -204,6 +221,12 @@ fi
 if [ $PENDING_PP_COUNT -gt 0 ]; then
   echo "Presenter Profile Requests:"
   echo "$PENDING_PRESENTERS" | jq -r '.[] | "  #\(.number): \(.title)"'
+  echo ""
+fi
+
+if [ $PENDING_OE_COUNT -gt 0 ]; then
+  echo "Organization Epic Requests:"
+  echo "$PENDING_ORG_EPICS" | jq -r '.[] | "  #\(.number): \(.title)"'
   echo ""
 fi
 ```
@@ -413,6 +436,49 @@ Once the agent is complete, your request will be processed automatically."
   done
 fi
 
+# Process Organization Epics
+if [ $PENDING_OE_COUNT -gt 0 ]; then
+  echo "━━━ ORGANIZATION EPICS ━━━"
+  echo ""
+  
+  ORG_EPIC_NUMBERS=$(jq -r '.[] | .number' pending_org_epics.json)
+  
+  for ISSUE_NUMBER in $ORG_EPIC_NUMBERS; do
+    echo "🏢 Processing Organization Epic #$ISSUE_NUMBER"
+    
+    # Mark issue as in-progress
+    gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
+    
+    # Post comment to issue
+    gh issue comment "$ISSUE_NUMBER" --body "🤖 **Content Orchestrator**
+
+Your organization epic request has been identified.
+
+**Status:** ⚠️ Agent not yet implemented
+**Agent:** organization-search-agent (in development, epic #24)
+**Content type:** Organization Epic (batch content generation with sub-issues)
+
+**Action Required:**
+The organization-search-agent is currently in development. Please check epic #24 for implementation status:
+https://github.com/$REPO/issues/24
+
+Once the agent is complete, your request will be processed automatically and sub-issues will be created for each video found."
+    
+    # Record as error (agent not implemented)
+    echo "organization-epic #$ISSUE_NUMBER (agent not implemented)" >> processing_errors.log
+    ERROR_COUNT=$((ERROR_COUNT + 1))
+    
+    # Remove in-progress label
+    gh issue edit "$ISSUE_NUMBER" --remove-label "in-progress"
+    
+    # Add waiting label
+    gh issue edit "$ISSUE_NUMBER" --add-label "waiting-for-agent-implementation"
+    
+    echo "   ⚠️ Agent not yet implemented (epic #24)"
+    echo ""
+  done
+fi
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 ```
 
@@ -420,6 +486,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 - Case study agent: Discovery works, manual invocation required
 - Reference architecture agent: Discovery works, manual invocation required
 - People agent: NOT YET IMPLEMENTED (epic #17)
+- Organization search agent: NOT YET IMPLEMENTED (epic #24)
 
 ---
 
@@ -438,6 +505,7 @@ echo "By Content Type:"
 echo "  📄 Case Studies:              $PENDING_CS_COUNT discovered → $PENDING_CS_COUNT attempted"
 echo "  🏗️  Reference Architectures:   $PENDING_RA_COUNT discovered → $PENDING_RA_COUNT attempted"
 echo "  👤 Presenter Profiles:         $PENDING_PP_COUNT discovered → 0 attempted (agent not implemented)"
+echo "  🏢 Organization Epics:         $PENDING_OE_COUNT discovered → 0 attempted (agent not implemented)"
 echo ""
 
 # Overall totals
@@ -460,6 +528,7 @@ echo "Agent Status:"
 echo "  ✅ case-study-agent (v2.2.0):              Ready (manual invocation required)"
 echo "  ✅ reference-architecture-agent (v1.0.0):  Ready (manual invocation required)"
 echo "  ⚠️ people-agent:                            Not yet implemented (epic #17)"
+echo "  ⚠️ organization-search-agent:               Not yet implemented (epic #24)"
 echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -483,6 +552,7 @@ jq -n \
   --argjson case_studies "$PENDING_CS_COUNT" \
   --argjson ref_archs "$PENDING_RA_COUNT" \
   --argjson presenters "$PENDING_PP_COUNT" \
+  --argjson org_epics "$PENDING_OE_COUNT" \
   --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   '{
     timestamp: $timestamp,
@@ -496,12 +566,14 @@ jq -n \
     by_content_type: {
       case_studies: $case_studies,
       reference_architectures: $ref_archs,
-      presenter_profiles: $presenters
+      presenter_profiles: $presenters,
+      organization_epics: $org_epics
     },
     agent_status: {
       case_study_agent: "ready-manual",
       reference_architecture_agent: "ready-manual",
-      people_agent: "not-implemented"
+      people_agent: "not-implemented",
+      organization_search_agent: "not-implemented"
     }
   }' > "$REPORT_FILE"
 
@@ -515,8 +587,8 @@ echo "📄 Report saved: $REPORT_FILE"
 **Objective:** Clean up temporary files.
 
 ```bash
-rm -f discovered_case_studies.json discovered_ref_archs.json discovered_presenters.json
-rm -f pending_case_studies.json pending_ref_archs.json pending_presenters.json
+rm -f discovered_case_studies.json discovered_ref_archs.json discovered_presenters.json discovered_org_epics.json
+rm -f pending_case_studies.json pending_ref_archs.json pending_presenters.json pending_org_epics.json
 rm -f processed_issues.log processing_errors.log
 
 echo "✅ Orchestrator workflow complete"
@@ -536,6 +608,7 @@ Issue Label              → Agent                           → Output
 case-study              → case-study-agent v2.2.0         → case-studies/company.md
 reference-architecture  → reference-architecture-agent    → reference-architectures/company.md
 presenter-profile       → people-agent (not implemented)  → people/username.md
+organization-request    → organization-search-agent       → Creates sub-issues (epic workflow)
 ```
 
 ### Content Type Specifications
@@ -545,6 +618,7 @@ presenter-profile       → people-agent (not implemented)  → people/username.
 | Case Study | 5 | 500-1500 | 3 | 2+ | Business leaders |
 | Reference Architecture | 13 | 2000-5000 | 6+ | 5+ | Engineers, architects |
 | Presenter Profile | 8 | 1000-2000 | 0 | N/A | Community members |
+| Organization Epic | N/A | N/A | N/A | N/A | Spawns multiple sub-issues |
 
 ---
 
@@ -555,23 +629,24 @@ presenter-profile       → people-agent (not implemented)  → people/username.
 ```
 ┌─────────────────────────────────────────┐
 │ content-orchestrator                     │
-│ - Discovers issues (3 types)             │
+│ - Discovers issues (4 types)             │
 │ - Filters processed issues               │
 │ - Routes by content type                 │
 │ - Marks issues for processing            │
 │ - Posts notifications                    │
 └─────────────────┬───────────────────────┘
                   │
-                  ├────────────────────────┬─────────────────────────┐
-                  │ (Manual)               │ (Manual)                │ (Not ready)
-                  ↓                        ↓                         ↓
-┌──────────────────────────┐  ┌──────────────────────────┐  ┌──────────────────────────┐
-│ case-study-agent         │  │ reference-architecture-  │  │ people-agent             │
-│ v2.2.0                   │  │ agent v1.0.0             │  │ (epic #17)               │
-│ - 14 steps               │  │ - 18 steps               │  │ - 16 steps (planned)     │
-│ - 5 checkpoints          │  │ - 7 checkpoints          │  │ - 5 checkpoints          │
-│ - 10 min processing      │  │ - 20 min processing      │  │ - TBD                    │
-└──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘
+                  ├────────────┬─────────────┬────────────────┐
+                  │ (Manual)   │ (Manual)    │ (Not ready)    │ (Not ready)
+                  ↓            ↓             ↓                ↓
+┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐
+│ case-study-agent   │  │ reference-         │  │ people-agent       │  │ organization-      │
+│ v2.2.0             │  │ architecture-agent │  │ (epic #17)         │  │ search-agent       │
+│ - 14 steps         │  │ v1.0.0             │  │ - 16 steps         │  │ (epic #24)         │
+│ - 5 checkpoints    │  │ - 18 steps         │  │ - 5 checkpoints    │  │ - 8 steps          │
+│ - 10 min           │  │ - 7 checkpoints    │  │ - TBD              │  │ - Creates          │
+│                    │  │ - 20 min           │  │                    │  │   sub-issues       │
+└────────────────────┘  └────────────────────┘  └────────────────────┘  └────────────────────┘
 ```
 
 ### Future Architecture (v2.0.0 - Automated Invocation)
@@ -583,6 +658,7 @@ Convert specialized agents to executable scripts:
 bash .github/agents/case-study-agent.sh "$ISSUE_NUMBER"
 bash .github/agents/reference-architecture-agent.sh "$ISSUE_NUMBER"
 bash .github/agents/people-agent.sh "$ISSUE_NUMBER"
+bash .github/agents/organization-search-agent.sh "$ISSUE_NUMBER"
 ```
 
 **Or** use GitHub Actions workflow dispatch:
@@ -592,6 +668,7 @@ bash .github/agents/people-agent.sh "$ISSUE_NUMBER"
 gh workflow run case-study-agent.yml -f issue_number="$ISSUE_NUMBER"
 gh workflow run reference-architecture-agent.yml -f issue_number="$ISSUE_NUMBER"
 gh workflow run people-agent.yml -f issue_number="$ISSUE_NUMBER"
+gh workflow run organization-search-agent.yml -f issue_number="$ISSUE_NUMBER"
 ```
 
 ---
@@ -683,6 +760,7 @@ The orchestrator relies on these labels to track issue state:
 | `case-study` | Case study request | User (via issue template) |
 | `reference-architecture` | Reference architecture request | User (via issue template) |
 | `presenter-profile` | Presenter profile request | User (via issue template) |
+| `organization-request` | Organization epic request | User (via issue template) |
 | `in-progress` | Currently processing | Orchestrator or specialized agent |
 | `case-study-generated` | Case study completed | case-study-agent |
 | `reference-architecture-generated` | Reference architecture completed | reference-architecture-agent |
@@ -771,6 +849,12 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
 
 ## Version History
 
+- **v1.1.0** (February 2026) - Organization epic support
+  - Added organization-search-agent discovery and routing (epic #24)
+  - Supports all four content types: case studies, reference architectures, presenter profiles, organization epics
+  - Posts "agent not implemented" messages for organization epics
+  - Labels organization requests as `waiting-for-agent-implementation`
+
 - **v1.0.0** (February 2026) - Initial release
   - Multi-content-type discovery (case studies, reference architectures, presenter profiles)
   - Filtering and routing logic
@@ -778,13 +862,14 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
   - Manual invocation of specialized agents
   - Status tracking via labels
   - Basic error handling
-  - Support for people-agent (queued until agent is implemented)
+  - Support for people-agent (queued until epic #17 is complete)
 
 **Future Roadmap:**
 
-- **v1.1.0** - Add automated invocation via bash script wrappers
+- **v1.2.0** - Add automated invocation via bash script wrappers
 - **v2.0.0** - Add parallel processing support
 - **v2.1.0** - Add people-agent support (when epic #17 is complete)
+- **v2.2.0** - Add organization-search-agent support (when epic #24 is complete)
 - **v3.0.0** - Add GitHub Actions workflow integration
 - **v4.0.0** - Add retry logic and failure recovery
 
@@ -796,10 +881,12 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
   - `.github/agents/case-study-agent.md` (v2.2.0)
   - `.github/agents/reference-architecture-agent.md` (v1.0.0)
   - `.github/agents/people-agent.md` (not yet implemented, epic #17)
+  - `.github/agents/organization-search-agent.md` (not yet implemented, epic #24)
 - **Issue Templates:**
   - `.github/ISSUE_TEMPLATE/generate-case-study.yml`
   - `.github/ISSUE_TEMPLATE/generate-reference-architecture.yml`
   - `.github/ISSUE_TEMPLATE/presenter-profile-request.yml` (not yet created)
+  - `.github/ISSUE_TEMPLATE/organization-request.yml` (not yet created)
 - **Framework Documentation:**
   - `AGENTS.md` - Agent development guide
   - `README.md` - Project overview
@@ -809,4 +896,5 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
 **Framework Status:** ✅ Ready for Manual Testing  
 **Automation Status:** ⚠️ Manual invocation required for case-study and reference-architecture agents (v1.0.0)  
 **People Agent Status:** ⚠️ Not yet implemented (epic #17)  
+**Organization Search Agent Status:** ⚠️ Not yet implemented (epic #24)  
 **Last Updated:** February 10, 2026
