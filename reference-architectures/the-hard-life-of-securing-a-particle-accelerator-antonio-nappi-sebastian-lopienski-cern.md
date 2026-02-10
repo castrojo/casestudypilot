@@ -32,6 +32,9 @@ The legacy architecture had several pain points:
 - The infrastructure depended on a single Puppet module maintainer for configuration updates
 - Manual operations consumed significant team time that could be spent on feature development
 
+![Legacy VM-based architecture with tightly coupled Keycloak and Infinispan](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-1.jpg)
+*The legacy VM-based architecture showing tightly coupled components and Puppet-based configuration management*
+
 [CERN](https://home.cern)'s SSO service is uniquely mission-critical. It supports not just daily administrative and engineering work but also real-time particle accelerator operations and experimental data collection. When physicists monitor particle collisions, any SSO outage directly impacts billion-dollar scientific experiments.
 
 After evaluating options, the team chose **[Kubernetes](https://kubernetes.io)** for its flexibility and CNCF project ecosystem. Management required quantitative proof that Kubernetes would improve performance. The team conducted load testing showing 4x efficiency improvements, securing approval for the migration.
@@ -97,38 +100,8 @@ The application layer consists of stateless Keycloak instances:
 - Remote cache configuration via Kubernetes ConfigMap and volume mounts
 - Separation from Infinispan enables independent restart in 30-40 seconds without session loss
 
-
-
-
-![Figure 1: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-1.jpg)
-*Figure 1: Architecture Component*
-
-
-
-![Figure 2: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-2.jpg)
-*Figure 2: Architecture Component*
-
-
-
-![Figure 3: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-3.jpg)
-*Figure 3: Architecture Component*
-
-
-
-![Figure 4: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-4.jpg)
-*Figure 4: Architecture Component*
-
-
-
-![Figure 5: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-5.jpg)
-*Figure 5: Architecture Component*
-
-
-
-![Figure 6: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-6.jpg)
-*Figure 6: Architecture Component*
-
-
+![Kubernetes-based architecture with separated Keycloak and Infinispan layers](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-2.jpg)
+*The new Kubernetes architecture with stateless Keycloak pods and separated cache infrastructure (presented at 16:00)*
 
 
 ---
@@ -300,6 +273,9 @@ Implementation challenges encountered:
 - DNS resolution latency occasionally caused startup delays. Solution: implemented retry logic with exponential backoff.
 - Monitoring cache hit rates required custom metrics integration. Solution: exposed cache statistics via Keycloak metrics endpoint.
 
+![Cache separation architecture showing stateless Keycloak pods connecting to remote Infinispan cache](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-4.jpg)
+*Diagram showing the separated cache architecture with Keycloak pods connecting to remote Infinispan via HotRod protocol*
+
 **Pattern 2: GitOps Multi-Cluster Synchronization**
 
 **Projects Involved:** **[Argo CD](https://argoproj.github.io/cd/)**, **[Kubernetes](https://kubernetes.io)**
@@ -320,6 +296,9 @@ Challenges addressed:
 
 - Realm configuration partially unsolved—many settings still live in database rather than Git. Solution: custom scripts export realm config to Git for change detection (workaround, not ideal).
 - Secret management requires external tooling—Git cannot store sensitive credentials. Solution: use Kubernetes Secrets managed outside **[Argo CD](https://argoproj.github.io/cd/)** workflow.
+
+![Argo CD GitOps workflow showing synchronization from Git to multiple Kubernetes clusters](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-6.jpg)
+*The GitOps workflow with Argo CD synchronizing configuration from Git repositories to multiple clusters across availability zones*
 
 **Pattern 3: Operator-Based Deployment with Custom Resources**
 
@@ -372,6 +351,9 @@ Challenges and solutions during validation:
 - Identical workload (5,550 concurrent users) handled with 4x better throughput
 - Resource utilization (CPU and memory) decreased significantly
 - Response time latency improved across all percentiles
+
+![Load testing results comparing legacy VM infrastructure with Kubernetes-based architecture](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-3.jpg)
+*Load testing results presented at 19:00 demonstrating 4x performance improvement with the new Kubernetes infrastructure*
 
 **Phase 2: Infrastructure Deployment (September 2023)**
 
@@ -525,21 +507,8 @@ Operational runbooks and incident response processes:
 - The separated Infinispan cache preserves sessions through Keycloak pod restarts
 - This architecture proved its resilience when pods restarted every 3 hours for 3 days due to Java heap misconfiguration with no user complaints
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+![SSO service usage statistics showing 200,000 users and 10,000 logins per hour](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-5.jpg)
+*Production usage statistics demonstrating the scale of CERN's SSO service supporting 200,000 users across multiple CNCF projects*
 
 ---
 
