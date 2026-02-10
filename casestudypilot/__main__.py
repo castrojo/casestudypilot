@@ -1,6 +1,7 @@
 """CLI entry point for casestudypilot."""
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional, List
@@ -30,6 +31,7 @@ from casestudypilot.tools.assemble_reference_architecture import main as assembl
 from casestudypilot.tools.github_client import fetch_github_profile, get_profile_completeness
 from casestudypilot.tools.multi_video_processor import fetch_multi_video_data
 from casestudypilot.tools.profile_assembler import assemble_presenter_profile
+from casestudypilot.tools.issue_parser import parse_issue
 # TODO: Implement these validation modules (future tasks)
 # from casestudypilot.validation.presenter import validate_presenter
 # from casestudypilot.validation.biography import validate_biography
@@ -62,6 +64,57 @@ def youtube_data(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
+
+
+@app.command(name="parse-issue")
+def parse_issue_cmd(
+    issue_number: int = typer.Argument(..., help="GitHub issue number"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output JSON file path"),
+):
+    """Parse GitHub issue and extract content generation metadata.
+
+    Extracts YouTube URL, content type, company name, and other metadata
+    from GitHub issues created via content generation templates.
+
+    Example:
+        python -m casestudypilot parse-issue 42
+        python -m casestudypilot parse-issue 42 --output issue_data.json
+    """
+    try:
+        console.print(f"[cyan]Parsing issue:[/cyan] #{issue_number}")
+        result = parse_issue(issue_number)
+
+        # Write to file if specified
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2)
+            console.print(f"[green]✓ Issue data saved to:[/green] {output}")
+
+        # Display result
+        console.print(f"\n[bold]Issue #{result['issue_number']}[/bold]")
+        console.print(f"[dim]Title:[/dim] {result['title']}")
+        console.print(f"[dim]Content Type:[/dim] {result['content_type']}")
+        console.print(f"[dim]Video URL:[/dim] {result['video_url']}")
+
+        if result.get("company_name"):
+            console.print(f"[dim]Company:[/dim] {result['company_name']}")
+        else:
+            console.print(f"[dim]Company:[/dim] [yellow]Not specified (will extract from video)[/yellow]")
+
+        # Output JSON to stdout if no file specified
+        if not output:
+            console.print(f"\n[dim]JSON output:[/dim]")
+            console.print(json.dumps(result, indent=2))
+
+    except ValueError as e:
+        console.print(f"[red]Validation Error:[/red] {e}")
+        sys.exit(2)
+    except RuntimeError as e:
+        console.print(f"[red]Runtime Error:[/red] {e}")
+        sys.exit(2)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
 
 
 @app.command()
@@ -948,6 +1001,103 @@ def assemble_presenter_profile_cmd(
         console.print(f"[dim]Presenter:[/dim] {result['presenter_name']} (@{result['github_username']})")
         console.print(f"[dim]Version:[/dim] {result['profile_version']}")
         console.print(f"[dim]Metadata:[/dim] {result['metadata_path']}")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        import traceback
+
+        console.print(f"[red]{traceback.format_exc()}[/red]")
+        sys.exit(2)
+
+
+@app.command(name="orchestrate")
+def orchestrate_cmd():
+    """Discover and process pending content generation requests.
+
+    This command is designed to be executed by an LLM agent. It loads the
+    content-orchestrator agent instructions and delegates execution.
+
+    The orchestrator will:
+    1. Discover open issues (case-study, reference-architecture, presenter-profile)
+    2. Parse issue data to extract YouTube URLs and metadata
+    3. Spawn specialized LLM agents to process each issue
+    4. Monitor completion and post results to issues
+
+    Usage (in OpenCode or similar LLM environment):
+        Tell the agent: "ingest incoming requests"
+
+        OR manually:
+        python -m casestudypilot orchestrate
+
+    Processing time:
+    - Case studies: ~10-15 minutes per issue
+    - Reference architectures: ~20-25 minutes per issue
+
+    The orchestrator executes workflows silently. Check GitHub issues for
+    completion status and PR links.
+    """
+    try:
+        console.print("[cyan bold]Content Orchestrator v2.0.0[/cyan bold]")
+        console.print("")
+
+        # Check prerequisites
+        console.print("[cyan]Checking prerequisites...[/cyan]")
+
+        # Check gh CLI
+        result = subprocess.run(["gh", "auth", "status"], capture_output=True)
+        if result.returncode != 0:
+            console.print("[red]✗ gh CLI not authenticated[/red]")
+            console.print("[yellow]Run: gh auth login[/yellow]")
+            sys.exit(2)
+        console.print("[green]✓ gh CLI authenticated[/green]")
+
+        # Check agent workflow file exists
+        agent_file = Path(".github/agents/content-orchestrator.md")
+        if not agent_file.exists():
+            console.print(f"[red]✗ Agent workflow not found: {agent_file}[/red]")
+            sys.exit(2)
+        console.print(f"[green]✓ Agent workflow found[/green]")
+
+        # Load agent instructions
+        with open(agent_file, "r", encoding="utf-8") as f:
+            agent_instructions = f.read()
+
+        console.print("")
+        console.print("[cyan bold]Orchestrator Instructions Loaded[/cyan bold]")
+        console.print("")
+        console.print("[yellow]EXECUTION MODE: This command is designed for LLM agent execution.[/yellow]")
+        console.print("")
+        console.print("The content-orchestrator agent will:")
+        console.print("  1. Discover open GitHub issues (case-study, reference-architecture)")
+        console.print("  2. Parse issue data and extract YouTube URLs")
+        console.print("  3. Spawn specialized LLM agents for each issue")
+        console.print("  4. Monitor completion and post results")
+        console.print("")
+        console.print("[dim]Agent workflow: .github/agents/content-orchestrator.md[/dim]")
+        console.print("[dim]Version: 2.0.0[/dim]")
+        console.print("")
+
+        # In OpenCode environment, this would spawn the orchestrator agent
+        # For now, provide instructions
+        console.print("[cyan bold]To Execute:[/cyan bold]")
+        console.print("")
+        console.print("In an LLM agent environment (OpenCode, etc.):")
+        console.print('  Tell the agent: "ingest incoming requests"')
+        console.print("")
+        console.print("The agent will read the orchestrator instructions from:")
+        console.print(f"  {agent_file.absolute()}")
+        console.print("")
+        console.print("And execute the complete workflow autonomously.")
+        console.print("")
+
+        # Output agent instructions for debugging
+        console.print("[dim]═══════════════════════════════════════════════════════════[/dim]")
+        console.print("[dim]Agent Instructions Preview (first 500 chars):[/dim]")
+        console.print("[dim]═══════════════════════════════════════════════════════════[/dim]")
+        console.print("")
+        console.print(agent_instructions[:500] + "...")
+        console.print("")
+        console.print("[dim]═══════════════════════════════════════════════════════════[/dim]")
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")

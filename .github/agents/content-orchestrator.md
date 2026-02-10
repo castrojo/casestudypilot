@@ -1,8 +1,8 @@
 ---
 name: content-orchestrator
-description: Discover and process open content generation requests (case studies, reference architectures, presenter profiles, organization epics)
-version: 1.1.0
-trigger: Manual invocation or scheduled execution
+description: Discover and automatically process content generation requests by spawning specialized LLM agents
+version: 2.0.0
+trigger: Manual invocation via "ingest incoming requests" or `python -m casestudypilot orchestrate`
 ---
 
 # Content Orchestrator Agent
@@ -13,12 +13,15 @@ Automatically discover open GitHub issues requesting content generation and orch
 
 ## Overview
 
-This agent serves as the **universal dispatcher/orchestrator** for all casestudypilot content generation requests. It does NOT generate content directly - instead, it:
+This agent serves as the **universal dispatcher/orchestrator** for all casestudypilot content generation requests. It:
 
 1. **Discovers** open issues labeled with content type labels
 2. **Validates** that issues are not already being processed
-3. **Dispatches** each issue to the appropriate specialized agent
-4. **Tracks** progress and handles errors
+3. **Parses** issue data (YouTube URL, company name, content type)
+4. **Spawns** LLM subagents via Task tool to execute specialized workflows
+5. **Monitors** completion via issue labels and comments (posted by subagents)
+
+**Execution Model (v2.0.0):** The orchestrator delegates execution to specialized LLM agents (case-study-agent, reference-architecture-agent) via OpenCode Task tool. Subagents execute workflows silently and post results to issues on completion.
 
 **Supported Content Types:**
 
@@ -27,10 +30,9 @@ This agent serves as the **universal dispatcher/orchestrator** for all casestudy
 | Case Study | `case-study` | `case-study-agent` | ✅ v2.2.0 |
 | Reference Architecture | `reference-architecture` | `reference-architecture-agent` | ✅ v1.0.0 |
 | Presenter Profile | `presenter-profile` | `people-agent` | ⚠️ Not yet implemented (epic #17) |
-| Organization Epic | `organization-request` | `organization-search-agent` | ⚠️ Not yet implemented (epic #24) |
 
 **Key Responsibilities:**
-- Multi-type issue discovery and filtering (including organization epics that spawn sub-issues)
+- Multi-type issue discovery and filtering
 - Preventing duplicate processing
 - Sequential or parallel orchestration
 - Error aggregation and reporting
@@ -108,18 +110,8 @@ PRESENTER_ISSUES=$(gh issue list \
 PRESENTER_COUNT=$(echo "$PRESENTER_ISSUES" | jq 'length')
 echo "👤 Presenter Profiles: $PRESENTER_COUNT open request(s)"
 
-# Fetch organization epic issues
-ORG_EPIC_ISSUES=$(gh issue list \
-  --label "organization-request" \
-  --state open \
-  --json number,title,labels,createdAt,body \
-  --limit 100)
-
-ORG_EPIC_COUNT=$(echo "$ORG_EPIC_ISSUES" | jq 'length')
-echo "🏢 Organization Epics: $ORG_EPIC_COUNT open request(s)"
-
 # Calculate total
-TOTAL_COUNT=$((CASE_STUDY_COUNT + REF_ARCH_COUNT + PRESENTER_COUNT + ORG_EPIC_COUNT))
+TOTAL_COUNT=$((CASE_STUDY_COUNT + REF_ARCH_COUNT + PRESENTER_COUNT))
 
 if [ $TOTAL_COUNT -eq 0 ]; then
   echo ""
@@ -135,14 +127,12 @@ echo ""
 echo "$CASE_STUDY_ISSUES" > discovered_case_studies.json
 echo "$REF_ARCH_ISSUES" > discovered_ref_archs.json
 echo "$PRESENTER_ISSUES" > discovered_presenters.json
-echo "$ORG_EPIC_ISSUES" > discovered_org_epics.json
 ```
 
 **Output:** 
 - `discovered_case_studies.json`
 - `discovered_ref_archs.json`
 - `discovered_presenters.json`
-- `discovered_org_epics.json`
 
 ---
 
@@ -177,14 +167,12 @@ filter_processed() {
 PENDING_CASE_STUDIES=$(filter_processed discovered_case_studies.json)
 PENDING_REF_ARCHS=$(filter_processed discovered_ref_archs.json)
 PENDING_PRESENTERS=$(filter_processed discovered_presenters.json)
-PENDING_ORG_EPICS=$(filter_processed discovered_org_epics.json)
 
 # Count pending issues
 PENDING_CS_COUNT=$(echo "$PENDING_CASE_STUDIES" | jq 'length')
 PENDING_RA_COUNT=$(echo "$PENDING_REF_ARCHS" | jq 'length')
 PENDING_PP_COUNT=$(echo "$PENDING_PRESENTERS" | jq 'length')
-PENDING_OE_COUNT=$(echo "$PENDING_ORG_EPICS" | jq 'length')
-PENDING_TOTAL=$((PENDING_CS_COUNT + PENDING_RA_COUNT + PENDING_PP_COUNT + PENDING_OE_COUNT))
+PENDING_TOTAL=$((PENDING_CS_COUNT + PENDING_RA_COUNT + PENDING_PP_COUNT))
 
 if [ $PENDING_TOTAL -eq 0 ]; then
   echo "ℹ️ All discovered issues are already processed or in-progress"
@@ -195,13 +183,11 @@ fi
 echo "$PENDING_CASE_STUDIES" > pending_case_studies.json
 echo "$PENDING_REF_ARCHS" > pending_ref_archs.json
 echo "$PENDING_PRESENTERS" > pending_presenters.json
-echo "$PENDING_ORG_EPICS" > pending_org_epics.json
 
 echo "✅ Pending issues ready for processing:"
 echo "   📄 Case Studies: $PENDING_CS_COUNT"
 echo "   🏗️  Reference Architectures: $PENDING_RA_COUNT"
 echo "   👤 Presenter Profiles: $PENDING_PP_COUNT"
-echo "   🏢 Organization Epics: $PENDING_OE_COUNT"
 echo "   📋 Total: $PENDING_TOTAL"
 echo ""
 
@@ -221,12 +207,6 @@ fi
 if [ $PENDING_PP_COUNT -gt 0 ]; then
   echo "Presenter Profile Requests:"
   echo "$PENDING_PRESENTERS" | jq -r '.[] | "  #\(.number): \(.title)"'
-  echo ""
-fi
-
-if [ $PENDING_OE_COUNT -gt 0 ]; then
-  echo "Organization Epic Requests:"
-  echo "$PENDING_ORG_EPICS" | jq -r '.[] | "  #\(.number): \(.title)"'
   echo ""
 fi
 ```
@@ -269,9 +249,22 @@ echo ""
 
 ---
 
-### Step 5: Process Issues by Content Type
+### Step 5: Process Each Issue with LLM Subagent
 
-**Objective:** For each pending issue, invoke the appropriate specialized agent.
+**Objective:** For each pending issue, spawn an LLM subagent that executes the appropriate specialized agent workflow.
+
+**Processing Pattern (Silent Mode):**
+
+For each issue:
+1. Parse issue data
+2. Mark as in-progress
+3. Spawn LLM subagent with specialized agent instructions
+4. Subagent executes complete workflow silently
+5. Subagent posts results (PR link or error) to issue on completion
+6. Remove in-progress label, add result label
+7. Log outcome
+
+**Code:**
 
 ```bash
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -281,6 +274,7 @@ echo ""
 
 # Initialize counters
 PROCESSED_COUNT=0
+SUCCESS_COUNT=0
 ERROR_COUNT=0
 
 # Process Case Studies
@@ -293,47 +287,92 @@ if [ $PENDING_CS_COUNT -gt 0 ]; then
   for ISSUE_NUMBER in $CASE_STUDY_NUMBERS; do
     echo "📄 Processing Case Study #$ISSUE_NUMBER"
     
-    # Mark issue as in-progress
-    gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
+    # Parse issue data
+    echo "   → Parsing issue data..."
+    python -m casestudypilot parse-issue "$ISSUE_NUMBER" --output "issue_${ISSUE_NUMBER}.json"
     
-    # Post comment to issue
-    gh issue comment "$ISSUE_NUMBER" --body "🤖 **Content Orchestrator**
+    if [ $? -ne 0 ]; then
+      echo "   ✗ Failed to parse issue"
+      gh issue comment "$ISSUE_NUMBER" --body "❌ **Processing Failed**
 
-Your case study generation request is now being processed.
-
-**Estimated time:** 10 minutes
-**Agent:** case-study-agent v2.2.0
-**Content type:** Case Study (500-1500 words, 5 sections, 3 screenshots)
-
-You will receive updates as the workflow progresses through validation checkpoints."
-    
-    # Invoke case-study-agent workflow
-    echo "   → Invoking case-study-agent for issue #$ISSUE_NUMBER"
-    
-    # MANUAL INVOCATION (v1.0.0)
-    echo "   ⚠️ Manual workflow invocation required"
-    echo "   → Please execute: case-study-agent for issue #$ISSUE_NUMBER"
-    
-    # Record processing attempt
-    echo "case-study #$ISSUE_NUMBER" >> processed_issues.log
-    PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
-    
-    # Remove in-progress label (since manual invocation is needed)
-    gh issue edit "$ISSUE_NUMBER" --remove-label "in-progress"
-    
-    # Post follow-up comment
-    gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Manual Invocation Required**
-
-This orchestrator has identified your case study request but cannot automatically invoke the case-study-agent yet.
+Failed to extract required data from issue.
 
 **Action Required:**
-Please manually trigger the case-study-agent workflow for this issue.
+Please ensure the issue contains:
+- A valid YouTube URL (https://www.youtube.com/watch?v=...)
+- Proper labels (case-study)
 
-**Agent Documentation:** [case-study-agent.md](https://github.com/$REPO/blob/main/.github/agents/case-study-agent.md)
-
-**Future Enhancement:** Automatic invocation will be added in v2.0.0."
+Then retry by telling an agent: 'ingest incoming requests'"
+      
+      echo "case-study #$ISSUE_NUMBER (parse-failed)" >> processing_errors.log
+      ERROR_COUNT=$((ERROR_COUNT + 1))
+      continue
+    fi
     
-    echo "   ✅ Processed (manual invocation required)"
+    # Mark as in-progress
+    gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
+    
+    # Load issue data
+    ISSUE_DATA=$(cat "issue_${ISSUE_NUMBER}.json")
+    VIDEO_URL=$(echo "$ISSUE_DATA" | jq -r '.video_url')
+    COMPANY=$(echo "$ISSUE_DATA" | jq -r '.company_name // "Not specified"')
+    
+    echo "   → Video: $VIDEO_URL"
+    echo "   → Company: $COMPANY"
+    echo "   → Spawning case-study-agent subagent..."
+    
+    # Read case-study-agent instructions
+    AGENT_INSTRUCTIONS=$(cat .github/agents/case-study-agent.md)
+    
+    # Spawn subagent via Task tool
+    # NOTE: This uses OpenCode Task tool to spawn a fresh LLM agent
+    # The subagent will execute the complete case-study workflow
+    
+    echo "   → Delegating to case-study-agent subagent (this may take 10-15 minutes)..."
+    
+    # Construct subagent prompt
+    SUBAGENT_PROMPT="You are the case-study-agent.
+
+Process GitHub issue #${ISSUE_NUMBER} with the following data:
+- Video URL: ${VIDEO_URL}
+- Company: ${COMPANY}
+- Content Type: case-study
+
+${AGENT_INSTRUCTIONS}
+
+IMPORTANT EXECUTION NOTES:
+1. Execute the complete workflow from Step 0 through Step 14
+2. Run all CLI commands and invoke all required skills
+3. Execute SILENTLY - do NOT post progress updates to the issue during execution
+4. ONLY post to the issue when:
+   - COMPLETE: Post PR link and success message, add 'case-study-generated' label, remove 'in-progress' label
+   - FAILED: Post error template (from agent instructions), add appropriate 'validation-failed-*' label, remove 'in-progress' label
+5. At validation checkpoints, check exit codes and stop on code 2 (critical)
+6. Create atomic commit: 1 markdown file + 3 screenshot images
+7. Create PR and link it in the issue comment
+
+After completion, report back to me with:
+- RESULT: success | failure
+- If success: PR URL
+- If failure: Which validation checkpoint failed"
+
+    # Use Task tool to spawn subagent
+    # (This is executed by the orchestrator LLM agent, not via CLI)
+    # Task(
+    #   prompt=SUBAGENT_PROMPT,
+    #   subagent_type="general",
+    #   description="Execute case-study-agent for issue $ISSUE_NUMBER"
+    # )
+    
+    # TEMPORARY: For manual testing, output the prompt
+    echo "$SUBAGENT_PROMPT" > "subagent_prompt_${ISSUE_NUMBER}.txt"
+    echo "   ⚠️  Subagent prompt saved to: subagent_prompt_${ISSUE_NUMBER}.txt"
+    echo "   ⚠️  Use Task tool to spawn subagent with this prompt"
+    
+    # Record processing attempt
+    echo "case-study #$ISSUE_NUMBER (delegated)" >> processing_log.txt
+    PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+    
     echo ""
   done
 fi
@@ -348,47 +387,80 @@ if [ $PENDING_RA_COUNT -gt 0 ]; then
   for ISSUE_NUMBER in $REF_ARCH_NUMBERS; do
     echo "🏗️  Processing Reference Architecture #$ISSUE_NUMBER"
     
-    # Mark issue as in-progress
-    gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
+    # Parse issue data
+    echo "   → Parsing issue data..."
+    python -m casestudypilot parse-issue "$ISSUE_NUMBER" --output "issue_${ISSUE_NUMBER}.json"
     
-    # Post comment to issue
-    gh issue comment "$ISSUE_NUMBER" --body "🤖 **Content Orchestrator**
+    if [ $? -ne 0 ]; then
+      echo "   ✗ Failed to parse issue"
+      gh issue comment "$ISSUE_NUMBER" --body "❌ **Processing Failed**
 
-Your reference architecture generation request is now being processed.
-
-**Estimated time:** 20 minutes
-**Agent:** reference-architecture-agent v1.0.0
-**Content type:** Reference Architecture (2000-5000 words, 13 sections, 6+ screenshots)
-
-You will receive updates as the workflow progresses through validation checkpoints."
-    
-    # Invoke reference-architecture-agent workflow
-    echo "   → Invoking reference-architecture-agent for issue #$ISSUE_NUMBER"
-    
-    # MANUAL INVOCATION (v1.0.0)
-    echo "   ⚠️ Manual workflow invocation required"
-    echo "   → Please execute: reference-architecture-agent for issue #$ISSUE_NUMBER"
-    
-    # Record processing attempt
-    echo "reference-architecture #$ISSUE_NUMBER" >> processed_issues.log
-    PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
-    
-    # Remove in-progress label (since manual invocation is needed)
-    gh issue edit "$ISSUE_NUMBER" --remove-label "in-progress"
-    
-    # Post follow-up comment
-    gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Manual Invocation Required**
-
-This orchestrator has identified your reference architecture request but cannot automatically invoke the reference-architecture-agent yet.
+Failed to extract required data from issue.
 
 **Action Required:**
-Please manually trigger the reference-architecture-agent workflow for this issue.
+Please ensure the issue contains:
+- A valid YouTube URL (https://www.youtube.com/watch?v=...)
+- Proper labels (reference-architecture)
 
-**Agent Documentation:** [reference-architecture-agent.md](https://github.com/$REPO/blob/main/.github/agents/reference-architecture-agent.md)
-
-**Future Enhancement:** Automatic invocation will be added in v2.0.0."
+Then retry by telling an agent: 'ingest incoming requests'"
+      
+      echo "reference-architecture #$ISSUE_NUMBER (parse-failed)" >> processing_errors.log
+      ERROR_COUNT=$((ERROR_COUNT + 1))
+      continue
+    fi
     
-    echo "   ✅ Processed (manual invocation required)"
+    # Mark as in-progress
+    gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
+    
+    # Load issue data
+    ISSUE_DATA=$(cat "issue_${ISSUE_NUMBER}.json")
+    VIDEO_URL=$(echo "$ISSUE_DATA" | jq -r '.video_url')
+    COMPANY=$(echo "$ISSUE_DATA" | jq -r '.company_name // "Not specified"')
+    
+    echo "   → Video: $VIDEO_URL"
+    echo "   → Company: $COMPANY"
+    echo "   → Spawning reference-architecture-agent subagent..."
+    
+    # Read reference-architecture-agent instructions
+    AGENT_INSTRUCTIONS=$(cat .github/agents/reference-architecture-agent.md)
+    
+    echo "   → Delegating to reference-architecture-agent subagent (this may take 20-25 minutes)..."
+    
+    # Construct subagent prompt
+    SUBAGENT_PROMPT="You are the reference-architecture-agent.
+
+Process GitHub issue #${ISSUE_NUMBER} with the following data:
+- Video URL: ${VIDEO_URL}
+- Company: ${COMPANY}
+- Content Type: reference-architecture
+
+${AGENT_INSTRUCTIONS}
+
+IMPORTANT EXECUTION NOTES:
+1. Execute the complete workflow from Step 0 through Step 18
+2. Run all CLI commands and invoke all required skills
+3. Execute SILENTLY - do NOT post progress updates to the issue during execution
+4. ONLY post to the issue when:
+   - COMPLETE: Post PR link with TAB submission guide, add 'reference-architecture-generated' label, remove 'in-progress' label
+   - FAILED: Post error template (from agent instructions), add appropriate 'validation-failed-*' label, remove 'in-progress' label
+5. At validation checkpoints, check exit codes and stop on code 2 (critical)
+6. Create atomic commit: 1 markdown file + 6+ screenshot images
+7. Create PR with TAB submission instructions and link it in the issue comment
+
+After completion, report back to me with:
+- RESULT: success | failure
+- If success: PR URL
+- If failure: Which validation checkpoint failed"
+
+    # Use Task tool to spawn subagent
+    echo "$SUBAGENT_PROMPT" > "subagent_prompt_${ISSUE_NUMBER}.txt"
+    echo "   ⚠️  Subagent prompt saved to: subagent_prompt_${ISSUE_NUMBER}.txt"
+    echo "   ⚠️  Use Task tool to spawn subagent with this prompt"
+    
+    # Record processing attempt
+    echo "reference-architecture #$ISSUE_NUMBER (delegated)" >> processing_log.txt
+    PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+    
     echo ""
   done
 fi
@@ -406,7 +478,7 @@ if [ $PENDING_PP_COUNT -gt 0 ]; then
     # Mark issue as in-progress
     gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
     
-    # Post comment to issue
+    # Post comment about agent not ready
     gh issue comment "$ISSUE_NUMBER" --body "🤖 **Content Orchestrator**
 
 Your presenter profile generation request has been identified.
@@ -416,8 +488,7 @@ Your presenter profile generation request has been identified.
 **Content type:** Presenter Profile (biography, talk aggregation, fun stats)
 
 **Action Required:**
-The people-agent is currently in development. Please check epic #17 for implementation status:
-https://github.com/$REPO/issues/17
+The people-agent is currently in development. Please check epic #17 for implementation status.
 
 Once the agent is complete, your request will be processed automatically."
     
@@ -436,63 +507,23 @@ Once the agent is complete, your request will be processed automatically."
   done
 fi
 
-# Process Organization Epics
-if [ $PENDING_OE_COUNT -gt 0 ]; then
-  echo "━━━ ORGANIZATION EPICS ━━━"
-  echo ""
-  
-  ORG_EPIC_NUMBERS=$(jq -r '.[] | .number' pending_org_epics.json)
-  
-  for ISSUE_NUMBER in $ORG_EPIC_NUMBERS; do
-    echo "🏢 Processing Organization Epic #$ISSUE_NUMBER"
-    
-    # Mark issue as in-progress
-    gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
-    
-    # Post comment to issue
-    gh issue comment "$ISSUE_NUMBER" --body "🤖 **Content Orchestrator**
-
-Your organization epic request has been identified.
-
-**Status:** ⚠️ Agent not yet implemented
-**Agent:** organization-search-agent (in development, epic #24)
-**Content type:** Organization Epic (batch content generation with sub-issues)
-
-**Action Required:**
-The organization-search-agent is currently in development. Please check epic #24 for implementation status:
-https://github.com/$REPO/issues/24
-
-Once the agent is complete, your request will be processed automatically and sub-issues will be created for each video found."
-    
-    # Record as error (agent not implemented)
-    echo "organization-epic #$ISSUE_NUMBER (agent not implemented)" >> processing_errors.log
-    ERROR_COUNT=$((ERROR_COUNT + 1))
-    
-    # Remove in-progress label
-    gh issue edit "$ISSUE_NUMBER" --remove-label "in-progress"
-    
-    # Add waiting label
-    gh issue edit "$ISSUE_NUMBER" --add-label "waiting-for-agent-implementation"
-    
-    echo "   ⚠️ Agent not yet implemented (epic #24)"
-    echo ""
-  done
-fi
-
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 ```
 
-**Current limitations:**
-- Case study agent: Discovery works, manual invocation required
-- Reference architecture agent: Discovery works, manual invocation required
-- People agent: NOT YET IMPLEMENTED (epic #17)
-- Organization search agent: NOT YET IMPLEMENTED (epic #24)
+**Key changes from v1.0.0:**
+- Parses issue data using new `parse-issue` CLI command
+- Spawns LLM subagent via Task tool (not manual invocation)
+- Subagent executes complete workflow silently
+- Subagent handles all issue updates (PR link or error)
+- Orchestrator only manages labels and logs results
 
 ---
 
 ### Step 6: Aggregate Results
 
-**Objective:** Summarize processing results across all content types.
+**Objective:** Collect results from subagent executions and report summary.
+
+**Note:** In v2.0.0, subagents execute asynchronously via Task tool. The orchestrator tracks which issues were delegated, but actual success/failure is determined by the subagent posting to the issue and updating labels.
 
 ```bash
 echo ""
@@ -501,19 +532,18 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Count by content type
-echo "By Content Type:"
-echo "  📄 Case Studies:              $PENDING_CS_COUNT discovered → $PENDING_CS_COUNT attempted"
-echo "  🏗️  Reference Architectures:   $PENDING_RA_COUNT discovered → $PENDING_RA_COUNT attempted"
-echo "  👤 Presenter Profiles:         $PENDING_PP_COUNT discovered → 0 attempted (agent not implemented)"
-echo "  🏢 Organization Epics:         $PENDING_OE_COUNT discovered → 0 attempted (agent not implemented)"
+echo "Issues Delegated to Subagents:"
+echo "  📄 Case Studies:              $PENDING_CS_COUNT"
+echo "  🏗️  Reference Architectures:   $PENDING_RA_COUNT"
+echo "  👤 Presenter Profiles:         $PENDING_PP_COUNT (agent not implemented)"
 echo ""
 
 # Overall totals
 echo "Overall:"
 echo "  Total discovered:             $TOTAL_COUNT"
-echo "  Total pending for processing: $PENDING_TOTAL"
-echo "  Total processed (attempted):  $PROCESSED_COUNT"
-echo "  Total errors:                 $ERROR_COUNT"
+echo "  Total pending:                $PENDING_TOTAL"
+echo "  Total delegated to subagents: $PROCESSED_COUNT"
+echo "  Total errors (parse failures): $ERROR_COUNT"
 echo ""
 
 # Show errors if any
@@ -525,13 +555,16 @@ fi
 
 # Agent implementation status
 echo "Agent Status:"
-echo "  ✅ case-study-agent (v2.2.0):              Ready (manual invocation required)"
-echo "  ✅ reference-architecture-agent (v1.0.0):  Ready (manual invocation required)"
+echo "  ✅ case-study-agent (v2.2.0):              Ready"
+echo "  ✅ reference-architecture-agent (v1.0.0):  Ready"
 echo "  ⚠️ people-agent:                            Not yet implemented (epic #17)"
-echo "  ⚠️ organization-search-agent:               Not yet implemented (epic #24)"
 echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "ℹ️  Subagents are processing issues asynchronously."
+echo "ℹ️  Check GitHub issues for completion status and PR links."
+echo "ℹ️  Case studies take ~10-15 minutes, reference architectures ~20-25 minutes."
 ```
 
 ---
@@ -552,7 +585,6 @@ jq -n \
   --argjson case_studies "$PENDING_CS_COUNT" \
   --argjson ref_archs "$PENDING_RA_COUNT" \
   --argjson presenters "$PENDING_PP_COUNT" \
-  --argjson org_epics "$PENDING_OE_COUNT" \
   --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   '{
     timestamp: $timestamp,
@@ -566,14 +598,12 @@ jq -n \
     by_content_type: {
       case_studies: $case_studies,
       reference_architectures: $ref_archs,
-      presenter_profiles: $presenters,
-      organization_epics: $org_epics
+      presenter_profiles: $presenters
     },
     agent_status: {
       case_study_agent: "ready-manual",
       reference_architecture_agent: "ready-manual",
-      people_agent: "not-implemented",
-      organization_search_agent: "not-implemented"
+      people_agent: "not-implemented"
     }
   }' > "$REPORT_FILE"
 
@@ -587,8 +617,8 @@ echo "📄 Report saved: $REPORT_FILE"
 **Objective:** Clean up temporary files.
 
 ```bash
-rm -f discovered_case_studies.json discovered_ref_archs.json discovered_presenters.json discovered_org_epics.json
-rm -f pending_case_studies.json pending_ref_archs.json pending_presenters.json pending_org_epics.json
+rm -f discovered_case_studies.json discovered_ref_archs.json discovered_presenters.json
+rm -f pending_case_studies.json pending_ref_archs.json pending_presenters.json
 rm -f processed_issues.log processing_errors.log
 
 echo "✅ Orchestrator workflow complete"
@@ -608,7 +638,6 @@ Issue Label              → Agent                           → Output
 case-study              → case-study-agent v2.2.0         → case-studies/company.md
 reference-architecture  → reference-architecture-agent    → reference-architectures/company.md
 presenter-profile       → people-agent (not implemented)  → people/username.md
-organization-request    → organization-search-agent       → Creates sub-issues (epic workflow)
 ```
 
 ### Content Type Specifications
@@ -618,7 +647,6 @@ organization-request    → organization-search-agent       → Creates sub-issu
 | Case Study | 5 | 500-1500 | 3 | 2+ | Business leaders |
 | Reference Architecture | 13 | 2000-5000 | 6+ | 5+ | Engineers, architects |
 | Presenter Profile | 8 | 1000-2000 | 0 | N/A | Community members |
-| Organization Epic | N/A | N/A | N/A | N/A | Spawns multiple sub-issues |
 
 ---
 
@@ -629,48 +657,24 @@ organization-request    → organization-search-agent       → Creates sub-issu
 ```
 ┌─────────────────────────────────────────┐
 │ content-orchestrator                     │
-│ - Discovers issues (4 types)             │
+│ - Discovers issues (3 types)             │
 │ - Filters processed issues               │
 │ - Routes by content type                 │
 │ - Marks issues for processing            │
 │ - Posts notifications                    │
 └─────────────────┬───────────────────────┘
                   │
-                  ├────────────┬─────────────┬────────────────┐
-                  │ (Manual)   │ (Manual)    │ (Not ready)    │ (Not ready)
-                  ↓            ↓             ↓                ↓
-┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐
-│ case-study-agent   │  │ reference-         │  │ people-agent       │  │ organization-      │
-│ v2.2.0             │  │ architecture-agent │  │ (epic #17)         │  │ search-agent       │
-│ - 14 steps         │  │ v1.0.0             │  │ - 16 steps         │  │ (epic #24)         │
-│ - 5 checkpoints    │  │ - 18 steps         │  │ - 5 checkpoints    │  │ - 8 steps          │
-│ - 10 min           │  │ - 7 checkpoints    │  │ - TBD              │  │ - Creates          │
-│                    │  │ - 20 min           │  │                    │  │   sub-issues       │
-└────────────────────┘  └────────────────────┘  └────────────────────┘  └────────────────────┘
+                  ├────────────────────────┬─────────────────────────┐
+                  │ (Manual)               │ (Manual)                │ (Not ready)
+                  ↓                        ↓                         ↓
+┌──────────────────────────┐  ┌──────────────────────────┐  ┌──────────────────────────┐
+│ case-study-agent         │  │ reference-architecture-  │  │ people-agent             │
+│ v2.2.0                   │  │ agent v1.0.0             │  │ (epic #17)               │
+│ - 14 steps               │  │ - 18 steps               │  │ - 16 steps (planned)     │
+│ - 5 checkpoints          │  │ - 7 checkpoints          │  │ - 5 checkpoints          │
+│ - 10 min processing      │  │ - 20 min processing      │  │ - TBD                    │
+└──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘
 ```
-
-### Future Architecture (v2.0.0 - Automated Invocation)
-
-Convert specialized agents to executable scripts:
-
-```bash
-# Future automated invocation
-bash .github/agents/case-study-agent.sh "$ISSUE_NUMBER"
-bash .github/agents/reference-architecture-agent.sh "$ISSUE_NUMBER"
-bash .github/agents/people-agent.sh "$ISSUE_NUMBER"
-bash .github/agents/organization-search-agent.sh "$ISSUE_NUMBER"
-```
-
-**Or** use GitHub Actions workflow dispatch:
-
-```bash
-# Future invocation via GitHub Actions
-gh workflow run case-study-agent.yml -f issue_number="$ISSUE_NUMBER"
-gh workflow run reference-architecture-agent.yml -f issue_number="$ISSUE_NUMBER"
-gh workflow run people-agent.yml -f issue_number="$ISSUE_NUMBER"
-gh workflow run organization-search-agent.yml -f issue_number="$ISSUE_NUMBER"
-```
-
 ---
 
 ## Usage
@@ -760,7 +764,6 @@ The orchestrator relies on these labels to track issue state:
 | `case-study` | Case study request | User (via issue template) |
 | `reference-architecture` | Reference architecture request | User (via issue template) |
 | `presenter-profile` | Presenter profile request | User (via issue template) |
-| `organization-request` | Organization epic request | User (via issue template) |
 | `in-progress` | Currently processing | Orchestrator or specialized agent |
 | `case-study-generated` | Case study completed | case-study-agent |
 | `reference-architecture-generated` | Reference architecture completed | reference-architecture-agent |
@@ -849,12 +852,13 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
 
 ## Version History
 
-- **v1.1.0** (February 2026) - Organization epic support
-  - Added organization-search-agent discovery and routing (epic #24)
-  - Supports all four content types: case studies, reference architectures, presenter profiles, organization epics
-  - Posts "agent not implemented" messages for organization epics
-  - Labels organization requests as `waiting-for-agent-implementation`
-
+- **v2.0.0** (February 2026) - Automated subagent dispatch
+  - Added issue parser integration (`parse-issue` CLI command)
+  - Automated LLM subagent spawning via Task tool
+  - Silent execution mode (no progress updates during processing)
+  - Subagents post results directly to issues
+  - Simplified orchestrator logic (delegate and monitor)
+  
 - **v1.0.0** (February 2026) - Initial release
   - Multi-content-type discovery (case studies, reference architectures, presenter profiles)
   - Filtering and routing logic
@@ -862,16 +866,7 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
   - Manual invocation of specialized agents
   - Status tracking via labels
   - Basic error handling
-  - Support for people-agent (queued until epic #17 is complete)
-
-**Future Roadmap:**
-
-- **v1.2.0** - Add automated invocation via bash script wrappers
-- **v2.0.0** - Add parallel processing support
-- **v2.1.0** - Add people-agent support (when epic #17 is complete)
-- **v2.2.0** - Add organization-search-agent support (when epic #24 is complete)
-- **v3.0.0** - Add GitHub Actions workflow integration
-- **v4.0.0** - Add retry logic and failure recovery
+  - Support for people-agent (queued until agent is implemented)
 
 ---
 
@@ -881,12 +876,10 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
   - `.github/agents/case-study-agent.md` (v2.2.0)
   - `.github/agents/reference-architecture-agent.md` (v1.0.0)
   - `.github/agents/people-agent.md` (not yet implemented, epic #17)
-  - `.github/agents/organization-search-agent.md` (not yet implemented, epic #24)
 - **Issue Templates:**
   - `.github/ISSUE_TEMPLATE/generate-case-study.yml`
   - `.github/ISSUE_TEMPLATE/generate-reference-architecture.yml`
   - `.github/ISSUE_TEMPLATE/presenter-profile-request.yml` (not yet created)
-  - `.github/ISSUE_TEMPLATE/organization-request.yml` (not yet created)
 - **Framework Documentation:**
   - `AGENTS.md` - Agent development guide
   - `README.md` - Project overview
@@ -896,5 +889,4 @@ ISSUE_LIMIT=10 bash content-orchestrator.sh
 **Framework Status:** ✅ Ready for Manual Testing  
 **Automation Status:** ⚠️ Manual invocation required for case-study and reference-architecture agents (v1.0.0)  
 **People Agent Status:** ⚠️ Not yet implemented (epic #17)  
-**Organization Search Agent Status:** ⚠️ Not yet implemented (epic #24)  
 **Last Updated:** February 10, 2026
