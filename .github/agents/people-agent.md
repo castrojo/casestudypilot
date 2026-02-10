@@ -103,12 +103,36 @@ If the presenter has older talks or specific videos, please provide feedback for
 Continuing with available data...
 ```
 
-**Store search results for Step 4a:**
+**Store search results and filter by duration for Step 4a:**
 ```bash
-# Extract video URLs from search results
-jq -r '.videos[].url' presenter_search.json > video_urls.txt
+# Extract video URLs from search results, filtering for videos over 10 minutes (600 seconds)
+# Short videos (announcements, closings, introductions) lack substantive technical content
+jq -r '.videos[] | select(.duration_seconds > 600) | .url' presenter_search.json > video_urls.txt
 VIDEO_COUNT=$(wc -l < video_urls.txt)
-echo "Found $VIDEO_COUNT videos to process"
+echo "Found $VIDEO_COUNT videos over 10 minutes to process"
+
+# If no videos remain after filtering, post error and STOP
+if [ $VIDEO_COUNT -eq 0 ]; then
+  # Post error: All videos too short
+  gh issue comment "$ISSUE_NUMBER" --body "❌ **Search Failed: No Substantive Videos Found**
+
+All videos found are under 10 minutes and lack sufficient technical content for profile generation.
+
+**Videos Found:** $(jq '.videos | length' presenter_search.json)
+**Videos Over 10 Minutes:** 0
+
+**Why 10+ minutes required:**
+- Short videos are typically announcements, closings, or introductions
+- Lack technical depth needed for expertise identification
+- Insufficient content for CNCF project analysis
+- Cannot generate meaningful talk summaries
+
+**Action Required:**
+Please verify the presenter has given substantive technical talks (10+ minutes) at CNCF events within the past 2 years.
+
+If all talks are short-form, consider manual profile creation or wait for longer presentations."
+  exit 2
+fi
 ```
 
 ### Step 2: Check if Profile Exists

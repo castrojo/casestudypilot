@@ -1,6 +1,7 @@
 name: Generate Presenter Profile
 description: Generate a comprehensive presenter profile by automatically searching CNCF YouTube
-labels: ["presenter-profile"]
+title: ""
+labels: ["type/presenter-profile"]
 assignees: []
 body:
   - type: markdown
@@ -19,9 +20,10 @@ body:
         **Target audience:** CNCF community, contributor recognition
         
         **Requirements:**
-        - Presenter has given at least 1 talk at CNCF events
+        - Presenter has given at least 1 substantive talk (10+ minutes) at CNCF events
         - Presenter name appears in video titles or descriptions
         - Videos have captions/subtitles enabled
+        - Short videos (announcements, closings) are automatically filtered out
 
   - type: input
     id: presenter_name
@@ -92,7 +94,7 @@ body:
         ## Validation Checkpoints
         
         The workflow includes 6 critical validation checkpoints:
-        - Video search results (minimum 1 video required)
+        - Video search results (minimum 1 video over 10 minutes required)
         - Multi-video data quality (transcripts ≥1000 chars)
         - Presenter name verification (found in ≥50% of videos)
         - Biography quality (minimum 100 chars, no placeholders)
