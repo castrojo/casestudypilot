@@ -96,8 +96,8 @@ The key to success was embracing [cloud-native](https://glossary.cncf.io/cloud-n
 **Key Metrics:**
 - We have millions of gyms worldwide
 - We have trillions of possibilities every single day
-- seven plus raid tiers
-- we achieved the double-digit growth in the rate engagement
+- Seven plus raid tiers
+- We achieved the double-digit growth in the raid engagement
 - The model utilizes close to a thousand features including geotemporal data, live events, and player activity
 
 **Video Source:**
