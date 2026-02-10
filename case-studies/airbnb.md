@@ -61,7 +61,7 @@ Crucially, Airbnb implemented a gradual ramp-and-opt-in process using Airflow to
 
 The migration to Kubernetes achieved remarkable success, demonstrating both technical excellence and operational efficiency at massive scale.
 
-Airbnb successfully migrated **38% of their production workload** to Kubernetes, accelerating dramatically from just **1% to 38% in a single month** after more than a year of careful preparation and platform development. Benchmark testing using TPC-DS 3TB scale showed that Spark on Kubernetes performed better than YARN for most queries, with particularly strong improvements for shuffle-heavy workloads when using NVMe discs. Critically, the team maintained their industry-leading **88% resource utilization** throughout the migration.
+Benchmark testing using TPC-DS 3TB scale showed that Spark on Kubernetes performed better than YARN for most queries, with particularly strong improvements for shuffle-heavy workloads when using NVMe disks. Critically, the team maintained their industry-leading **88% resource utilization** throughout the migration.
 
 The new platform handled Airbnb's demanding scale requirements effortlessly, managing workloads that spike from baseline levels to **30,000-40,000 running and pending pods** during peak periods. The infrastructure processed **90 terabytes of container logs per week** while providing developers with instant access to debugging information through the custom reverse proxy.
 
