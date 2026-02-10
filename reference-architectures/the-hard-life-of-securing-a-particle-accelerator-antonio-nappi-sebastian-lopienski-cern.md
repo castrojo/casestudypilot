@@ -45,32 +45,32 @@ The modernized CERN Keycloak architecture follows a cloud-native, multi-cluster 
 
 
 
-![Figure 1: Architecture Component](images/cern/screenshot-1.jpg)
+![Figure 1: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-1.jpg)
 *Figure 1: Architecture Component*
 
 
 
-![Figure 2: Architecture Component](images/cern/screenshot-2.jpg)
+![Figure 2: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-2.jpg)
 *Figure 2: Architecture Component*
 
 
 
-![Figure 3: Architecture Component](images/cern/screenshot-3.jpg)
+![Figure 3: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-3.jpg)
 *Figure 3: Architecture Component*
 
 
 
-![Figure 4: Architecture Component](images/cern/screenshot-4.jpg)
+![Figure 4: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-4.jpg)
 *Figure 4: Architecture Component*
 
 
 
-![Figure 5: Architecture Component](images/cern/screenshot-5.jpg)
+![Figure 5: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-5.jpg)
 *Figure 5: Architecture Component*
 
 
 
-![Figure 6: Architecture Component](images/cern/screenshot-6.jpg)
+![Figure 6: Architecture Component](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-6.jpg)
 *Figure 6: Architecture Component*
 
 
