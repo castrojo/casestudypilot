@@ -70,9 +70,33 @@ def assemble_reference_architecture(json_path: str, screenshot_paths: List[str],
         print(f"❌ Error loading JSON: {e}", file=sys.stderr)
         return 2
 
-    # Extract company name and create slug
-    company_name = data.get("metadata", {}).get("company_name", "unknown")
-    company_slug = company_name.lower().replace(" ", "-").replace(".", "").replace(",", "")
+    # Extract metadata for slug generation (matching case study convention)
+    video_title = data.get("metadata", {}).get("video_title", "")
+    speakers = data.get("metadata", {}).get("speakers", "")
+
+    # Generate filename slug from video title + speakers (case study convention)
+    # Example: "The Hard Life... - Antonio Nappi & Sebastian Lopienski, CERN"
+    # Becomes: "the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern"
+    if video_title:
+        # Remove speaker suffix from title if present (after last " - ")
+        title_part = video_title.split(" - ")[0] if " - " in video_title else video_title
+        # Clean and slugify
+        slug_parts = []
+        slug_parts.append(title_part.lower())
+        if speakers:
+            slug_parts.append(speakers.lower())
+
+        full_slug = " ".join(slug_parts)
+        # Slugify: lowercase, remove special chars, replace spaces with hyphens
+        import re
+
+        company_slug = re.sub(r"[^\w\s-]", "", full_slug)  # Remove special chars
+        company_slug = re.sub(r"[-\s]+", "-", company_slug)  # Replace spaces/multiple hyphens
+        company_slug = company_slug.strip("-")  # Remove leading/trailing hyphens
+    else:
+        # Fallback to company name
+        company_name = data.get("metadata", {}).get("company_name", "unknown")
+        company_slug = company_name.lower().replace(" ", "-").replace(".", "").replace(",", "")
 
     # Copy screenshots and prepare metadata
     if screenshot_paths:

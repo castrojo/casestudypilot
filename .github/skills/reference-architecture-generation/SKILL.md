@@ -116,15 +116,18 @@ This skill transforms deep technical analysis and diagram specifications into a 
   },
   "company_info": {
     "name": "Example Corp",
+    "url": "https://example.com",
     "industry": "E-commerce",
     "verified_membership": true,
     "company_size": "500-1000 employees"
   },
   "video_metadata": {
-    "title": "Example Corp's Journey to Cloud Native with Kubernetes and Istio",
+    "title": "Example Corp's Journey to Cloud Native with Kubernetes and Istio - John Doe & Jane Smith, Example Corp",
     "url": "https://youtube.com/watch?v=VIDEO_ID",
     "duration_seconds": 1234,
-    "publication_date": "2026-01-15"
+    "duration_string": "20:34",
+    "publication_date": "2026-01-15",
+    "speakers": "John Doe & Jane Smith"
   }
 }
 ```
@@ -139,8 +142,12 @@ This skill transforms deep technical analysis and diagram specifications into a 
     "title": "Reference Architecture: E-commerce Platform on Kubernetes with Istio Service Mesh",
     "subtitle": "Multi-region, multi-cluster architecture for high-traffic e-commerce workloads",
     "company_name": "Example Corp",
+    "company_url": "https://example.com",
     "industry": "E-commerce",
     "video_url": "https://youtube.com/watch?v=VIDEO_ID",
+    "video_title": "Example Corp's Journey to Cloud Native with Kubernetes and Istio - John Doe & Jane Smith, Example Corp",
+    "duration_string": "20:34",
+    "speakers": "John Doe & Jane Smith",
     "publication_date": "2026-02-09",
     "word_count": 3500,
     "estimated_read_time": "18 minutes",
@@ -191,6 +198,57 @@ This skill transforms deep technical analysis and diagram specifications into a 
 
 ## Execution Instructions
 
+### CRITICAL: Professional Formatting Requirements
+
+**ALL sections must follow these formatting rules:**
+
+```
+1. Paragraph Structure:
+   - NEVER generate text as one continuous blob
+   - ALWAYS break content into multiple paragraphs (2-5 sentences each)
+   - Add blank line between paragraphs in markdown
+   - Each paragraph should have ONE clear focus
+   
+2. Markdown Table Formatting:
+   - Tables MUST have proper markdown syntax:
+     | Column 1 | Column 2 | Column 3 |
+     |----------|----------|----------|
+     | Row 1    | Data     | Data     |
+     | Row 2    | Data     | Data     |
+   
+   - ALWAYS include header separator row with dashes: |----------|
+   - Ensure each row has same number of columns as header
+   - No missing pipes (|) at start/end of rows
+   - Test table structure: count pipes in header vs data rows
+   
+3. Professional Tone:
+   - Minimize bold formatting (use only for project names on first mention)
+   - NO emojis anywhere in the content
+   - NO marketing language or buzzwords
+   - Use formal technical writing style
+   - Avoid excessive formatting (bold, italics, caps)
+   
+4. Section Organization:
+   - Use clear subsection headers (###) when needed
+   - Group related content logically
+   - Use numbered lists for sequential steps
+   - Use bullet lists for non-sequential items
+   
+5. Bad Example (DO NOT DO THIS):
+   "CERN's architecture leverages six CNCF projects each serving a specific purpose in the overall system Kubernetes CNCF Graduated serves as the primary container orchestration platform hosting Keycloak pods across multiple clusters in different availability zones The migration from VM-based infrastructure to Kubernetes occurred in September 2023 moving from puppet-managed VMs to operator-managed containers The multi-cluster approach treats each Kubernetes cluster as cattle rather than pets clusters are replaceable and zone failures are handled gracefully..."
+   
+   Why bad: One massive paragraph, no breaks, unreadable
+   
+6. Good Example (DO THIS):
+   "[CERN](https://home.cern)'s architecture leverages six CNCF projects, each serving a specific purpose in the overall system.
+   
+   **[Kubernetes](https://kubernetes.io)** (CNCF Graduated) serves as the primary container orchestration platform, hosting Keycloak pods across multiple clusters in different availability zones. The migration from VM-based infrastructure to Kubernetes occurred in September 2023, moving from puppet-managed VMs to operator-managed containers.
+   
+   The multi-cluster approach treats each Kubernetes cluster as cattle rather than pets. Clusters are replaceable and zone failures are handled gracefully without manual intervention. This design choice enables automatic failover and reduces operational burden."
+   
+   Why good: Multiple paragraphs, clear breaks, readable structure, proper linking
+```
+
 Follow these steps to generate the reference architecture:
 
 ### Step 1: Extract and Validate Inputs
@@ -224,15 +282,25 @@ Create metadata for the reference architecture:
    - Example: "Multi-region, multi-cluster architecture for high-traffic e-commerce workloads"
    - Keep subtitle under 150 characters
 
-3. Calculate word_count:
+3. Extract company_name and company_url from company_info:
+   - company_name: from company_info.name
+   - company_url: from company_info.url
+
+4. Extract video metadata:
+   - video_url: from video_metadata.url
+   - video_title: from video_metadata.title (full title with speakers)
+   - duration_string: from video_metadata.duration_string (format: "MM:SS" or "HH:MM:SS")
+   - speakers: from video_metadata.speakers (extracted from title, format: "Name1 & Name2")
+
+5. Calculate word_count:
    - Sum word counts from all sections
    - Target: 2500-4000 words (acceptable: 2000-5000)
 
-4. Calculate estimated_read_time:
+6. Calculate estimated_read_time:
    - Formula: word_count / 200 (words per minute)
    - Round to nearest minute
 
-5. Generate TAB metadata:
+7. Generate TAB metadata:
    a. project_maturity:
       - Check CNCF project maturity levels
       - Use highest maturity level among primary projects
@@ -251,6 +319,80 @@ Create metadata for the reference architecture:
 6. Set publication_date to current date (ISO format: YYYY-MM-DD)
 
 7. Copy company_name, industry, video_url from inputs
+```
+
+### Step 2.5: Markdown Linking Conventions (CRITICAL)
+
+**IMPORTANT:** All reference architectures must follow the same linking conventions as case studies for consistency.
+
+```
+Linking Rules (apply throughout ALL sections):
+
+1. Company Name Linking:
+   - ALWAYS link company name: [Company Name](https://company-url.com)
+   - Link company name in EVERY section where it appears
+   - Example: "[CERN](https://home.cern)" NOT "CERN"
+   - Use company_url from company_info.url
+
+2. CNCF Project Linking:
+   - ALWAYS link CNCF projects with bold formatting: **[Project Name](https://project-url)**
+   - Link on FIRST mention in each major section
+   - Examples:
+     - **[Kubernetes](https://kubernetes.io)**
+     - **[Keycloak](https://www.keycloak.org)**
+     - **[Argo CD](https://argoproj.github.io/cd/)**
+     - **[Prometheus](https://prometheus.io)**
+     - **[Istio](https://istio.io)**
+   - Use official project URLs (kubernetes.io, istio.io, etc.)
+   - Subsequent mentions in same section can be unlinked
+
+3. CNCF Glossary Term Linking:
+   - Link cloud-native terminology to CNCF glossary: [term](https://glossary.cncf.io/term/)
+   - Common terms to link:
+     - [cloud-native](https://glossary.cncf.io/cloud-native-tech/)
+     - [microservices](https://glossary.cncf.io/microservices-architecture/)
+     - [container orchestration](https://glossary.cncf.io/container-orchestration/)
+     - [service mesh](https://glossary.cncf.io/service-mesh/)
+     - [observability](https://glossary.cncf.io/observability/)
+     - [GitOps](https://glossary.cncf.io/gitops/)
+     - [progressive delivery](https://glossary.cncf.io/progressive-delivery/)
+     - [canary deployment](https://glossary.cncf.io/canary-deployment/)
+   - Link on first mention in each major section
+   - Use kebab-case URLs (service-mesh, not servicemesh)
+
+4. Project URL Reference List:
+   Kubernetes: https://kubernetes.io
+   Keycloak: https://www.keycloak.org
+   Argo CD: https://argoproj.github.io/cd/
+   Argo Rollouts: https://argoproj.github.io/rollouts/
+   Prometheus: https://prometheus.io
+   Grafana: https://grafana.com
+   Istio: https://istio.io
+   Envoy: https://www.envoyproxy.io
+   Helm: https://helm.sh
+   Fluent Bit: https://fluentbit.io
+   Fluentd: https://www.fluentd.org
+   Jaeger: https://www.jaegertracing.io
+   Podman: https://podman.io
+   Containerd: https://containerd.io
+   
+   (If project not listed, use format: https://projectname.io or https://github.com/cncf/projectname)
+
+Example paragraph with proper linking:
+
+"[CERN](https://home.cern) operates a multi-cluster **[Kubernetes](https://kubernetes.io)** architecture 
+across multiple availability zones. The team uses **[Keycloak](https://www.keycloak.org)** for identity 
+management with **[Argo CD](https://argoproj.github.io/cd/)** for [GitOps](https://glossary.cncf.io/gitops/)-based 
+deployments. This [cloud-native](https://glossary.cncf.io/cloud-native-tech/) approach enables 
+[CERN](https://home.cern) to manage 200,000 users with high availability. Monitoring is handled by 
+**[Prometheus](https://prometheus.io)** and **[Grafana](https://grafana.com)**."
+
+Quality Checks:
+- [ ] Company name linked in every section
+- [ ] All CNCF projects linked with bold on first mention per section
+- [ ] Cloud-native terms linked to glossary on first mention per section
+- [ ] URLs are correct and follow official project domains
+- [ ] No broken links or placeholder URLs
 ```
 
 ### Step 3: Generate Executive Summary (200-300 words)
@@ -450,59 +592,56 @@ Quality checks:
 Detail how each CNCF project is used:
 
 ```
-Introduction (50-75 words):
-- List all CNCF projects used
-- Brief explanation of why each was chosen
-- Example: "This architecture leverages five graduated CNCF projects: Kubernetes for container orchestration, Istio for service mesh capabilities, Prometheus for metrics collection, Argo CD for GitOps deployments, and Helm for package management. Each project plays a specific role in the architecture, with careful integration between projects."
+CRITICAL: This section often becomes an unreadable blob. MUST use subsections and paragraph breaks.
 
-For each project in deep_analysis.cncf_projects (100-150 words each):
+Introduction (50-75 words):
+- Brief paragraph listing all CNCF projects
+- One sentence per project explaining its role
+- Example: "This architecture leverages five graduated CNCF projects. **[Kubernetes](https://kubernetes.io)** provides container orchestration, **[Istio](https://istio.io)** handles service mesh capabilities, **[Prometheus](https://prometheus.io)** collects metrics, **[Argo CD](https://argoproj.github.io/cd/)** enables GitOps deployments, and **[Helm](https://helm.sh)** manages package definitions."
+
+For each project in deep_analysis.cncf_projects:
 
 ### [Project Name] ([Category])
 
-**Purpose:** [Why this project was chosen]
-- Primary use case in this architecture
-- Extract from cncf_projects[N].usage_context
+Write 3-4 SHORT paragraphs (NOT one long blob):
 
-**Implementation Details:**
-- Version used (from cncf_projects[N].version)
-- Configuration specifics (from cncf_projects[N].configuration_details)
-- Deployment approach
-- Integration with other projects
+Paragraph 1 - Purpose (2-3 sentences):
+[Why this project was chosen and its primary role]
 
-**Specific Features Used:**
-- List 3-5 specific features/capabilities
-- Example for Kubernetes: "Deployments for rolling updates, StatefulSets for stateful services, DaemonSets for node-level monitoring agents, Network Policies for security, HPA for auto-scaling"
+Paragraph 2 - Implementation (3-4 sentences):
+[Version, configuration, deployment details]
 
-**Operational Considerations:**
-- Performance tuning
-- Resource requirements
-- Monitoring and troubleshooting
-- Extract from deep_analysis.sections.implementation_details
+Paragraph 3 - Features (2-3 sentences + bullet list):
+[Introduction sentence, then bulleted list of 3-5 features]
 
-Example:
+Paragraph 4 - Operations (2-3 sentences):
+[How it's operated, monitored, maintained]
+
+Example (CORRECT FORMATTING):
 
 ### Kubernetes (Orchestration & Management)
 
-**Purpose:** Kubernetes serves as the foundational container orchestration platform, managing all microservices across six clusters in three regions.
+[Kubernetes](https://kubernetes.io) serves as the foundational container orchestration platform, managing all microservices across six clusters in three regions. The team selected Kubernetes for its maturity, extensive ecosystem, and proven scalability at enterprise scale.
 
-**Implementation Details:** The team deployed Kubernetes v1.26 using Amazon EKS in three AWS regions. Each production cluster runs 20-50 m5.2xlarge nodes with Cluster Autoscaler for dynamic scaling based on CPU and memory utilization. The team uses Calico CNI for network policies, enabling microsegmentation between services. All clusters are configured with identical settings using eksctl configuration files version-controlled in Git.
+The team deployed Kubernetes v1.26 using Amazon EKS in three AWS regions. Each production cluster runs 20-50 m5.2xlarge nodes with Cluster Autoscaler for dynamic scaling. All clusters use Calico CNI for network policies and identical configurations managed through Git.
 
-**Specific Features Used:**
-- Deployments with rolling updates (maxSurge: 25%, maxUnavailable: 0 for zero-downtime deploys)
+Key features utilized include:
+- Deployments with rolling updates (maxSurge: 25%, maxUnavailable: 0)
 - StatefulSets for Kafka and Elasticsearch clusters
 - DaemonSets for monitoring agents (Prometheus Node Exporter, Fluentd)
 - Horizontal Pod Autoscaler targeting 70% CPU utilization
 - Network Policies for service-to-service security
 - RBAC for team-based access control
 
-**Operational Considerations:** Node pools are segmented by workload type (general compute, memory-intensive, GPU). Cluster upgrades follow a rolling approach—dev clusters first, then staging, then production regions sequentially. The ops team maintains runbooks for common failure scenarios (node failures, pod evictions, network partitions).
+Node pools are segmented by workload type (general compute, memory-intensive, GPU). Cluster upgrades follow a rolling approach: dev clusters first, then staging, then production regions sequentially.
 
 Quality checks:
-- Total word count: 500-700 words (100-150 per project)
-- Covers 5+ CNCF projects in detail
+- Total word count: 500-700 words (80-140 words per project)
+- Covers 5+ CNCF projects with proper paragraph structure
+- Each project has 3-4 SHORT paragraphs (NOT one blob)
 - Includes version numbers and specific configurations
 - Explains WHY each project was chosen
-- Shows how projects integrate (not isolated descriptions)
+- Uses subsection headers (###) for each project
 ```
 
 ### Step 9: Generate Integration Patterns (400-600 words)

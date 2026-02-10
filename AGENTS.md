@@ -452,6 +452,8 @@ All agent workflows that interact with GitHub must include authentication checks
 | Architecture | Overview only | 3-layer breakdown + integration patterns |
 | Diagrams | None | Textual component + data flow specs |
 | Screenshots | 3 screenshots | 6+ screenshots (architecture-focused) |
+| Screenshot Placement | Grouped together (usually at end) | **Distributed contextually** across document |
+| Screenshots Per Section | ~1 section with all images | **3-4 major sections** with topical images |
 | Technical Depth | Score ≥0.60 | Score ≥0.70 (5-dimensional scoring) |
 | Skills Used | 3 skills | 3 specialized skills (deep-analysis, diagram-spec, generation) |
 | Validation Checkpoints | 5 checkpoints | 7 checkpoints (5 critical fail-fast) |
@@ -490,6 +492,91 @@ technical_depth_score = (
 3. **Company Consistency (Step 11):** Exit code 2 if content mentions wrong company
 4. **Technical Depth Score (Step 13):** Exit code 2 if score <0.60, exit code 1 if 0.60-0.69
 5. **Transcript Quality (Step 2):** Exit code 2 if <2000 characters
+
+**Screenshot Placement Requirements:**
+
+Reference architectures require **6+ screenshots distributed contextually** across 3-4 major sections (approximately double the screenshots compared to case studies which use 3 screenshots grouped together).
+
+**Key Principle:** Screenshots must be **topical to the paragraph content** where they appear. Each screenshot should reinforce the main technical point being discussed in that section.
+
+**Distribution Pattern:**
+
+| Section | Screenshot Topics | Example (CERN Architecture) |
+|---------|-------------------|------------------------------|
+| Background | Legacy architecture, current pain points | VM-based legacy architecture diagram |
+| Architecture Overview | New architecture design, key components | Kubernetes multi-cluster architecture |
+| Architecture Diagrams | Component diagrams, data flows | Component diagram, data flow diagram |
+| Integration Patterns | Specific patterns (cache separation, GitOps) | Cache separation diagram, GitOps workflow |
+| Implementation Details | Testing results, deployment steps | Load testing performance comparison |
+| Observability/Results | Production metrics, usage statistics | Usage dashboard showing scale |
+
+**Anti-Pattern (DO NOT DO THIS):**
+```markdown
+## Architecture Overview
+[Content about architecture...]
+
+![Screenshot 1](...)
+![Screenshot 2](...)
+![Screenshot 3](...)
+![Screenshot 4](...)
+![Screenshot 5](...)
+![Screenshot 6](...)  ← All screenshots dumped in one place
+
+## Next Section
+[Content continues...]
+```
+
+**Correct Pattern (DO THIS):**
+```markdown
+## Background
+[Content about legacy architecture...]
+
+![Legacy VM-based architecture](...)  ← Screenshot 1 placed contextually
+
+[More content...]
+
+## Architecture Overview
+[Content about new Kubernetes architecture...]
+
+![New Kubernetes architecture](...)  ← Screenshot 2 placed contextually
+
+[More content...]
+
+## Integration Patterns
+[Content about cache separation pattern...]
+
+![Cache separation diagram](...)  ← Screenshot 3 placed contextually
+
+[Content about GitOps pattern...]
+
+![GitOps workflow](...)  ← Screenshot 4 placed contextually
+
+## Implementation Details
+[Content about load testing...]
+
+![Load testing results](...)  ← Screenshot 5 placed contextually
+
+## Results
+[Content about production metrics...]
+
+![Usage statistics dashboard](...)  ← Screenshot 6 placed contextually
+```
+
+**Guidelines for Screenshot Placement:**
+
+1. **Place screenshot immediately after** the paragraph that describes what it shows
+2. **Use descriptive alt text** that explains what the screenshot depicts (not generic "Figure 1")
+3. **Add caption** with context (e.g., "*Load testing results presented at 19:00 demonstrating 4x improvement*")
+4. **Spread across document** - aim for 1-2 screenshots per major section
+5. **Match content to image** - if discussing cache architecture, place cache diagram there
+
+**Assembly Script Responsibility:**
+
+The assembly script (`assemble_reference_architecture.py`) should be updated to:
+- Accept screenshot placement hints from the generation skill JSON
+- Place screenshots in specified sections based on topical relevance
+- Default to contextual distribution if no hints provided
+- NEVER dump all screenshots in one location
 
 **Output Structure:**
 
