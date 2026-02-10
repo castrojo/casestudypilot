@@ -4,17 +4,6 @@
 
 This tool automatically generates business-focused **case studies** and technical **reference architectures** from CNCF conference videos (KubeCon + CloudNativeCon, etc.). It uses YouTube closed captions with timestamps to extract structured insights, validates against CNCF community standards, and produces publication-ready markdown with contextually-placed screenshots.
 
-**Key Features:**
-- 🤖 **Agent-driven workflows** with fail-fast validation to prevent hallucination
-- 📊 **Dual content types**: Case studies (business focus) and reference architectures (technical deep-dives)
-- 🛡️ **Quality assurance**: Multi-factor scoring ensures content meets CNCF standards
-- 🔒 **Zero API keys**: Works immediately with no authentication setup
-- 🐋 **Container-first**: Run entirely in containers with zero host dependencies
-- 📸 **Smart screenshots**: Extracts and places relevant video frames contextually
-- 🎯 **CNCF-validated**: Verifies company membership and project mentions
-
----
-
 ## 📚 Generated Content
 
 ### Case Studies
@@ -34,6 +23,17 @@ This tool automatically generates business-focused **case studies** and technica
 ---
 
 ## Architecture
+
+Key Features:
+
+- **Agent-driven workflows** with fail-fast validation to prevent hallucination
+- **Dual content types**: Case studies (business focus) and reference architectures (technical deep-dives)
+- **Quality assurance**: Multi-factor scoring ensures content meets CNCF standards
+- **Zero API keys**: Works immediately with no authentication setup
+- **Container-first**: Run entirely in containers with zero host dependencies
+- **Smart screenshots**: Extracts and places relevant video frames contextually
+- **CNCF-validated**: Verifies company membership and project mentions
+
 
 **Three-Layer Agent Framework:**
 
