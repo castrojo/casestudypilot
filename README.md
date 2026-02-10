@@ -7,17 +7,15 @@ TLDR: Ingests the youtube closed caption (which has timestamps!) and then genera
 ### Case Studies
 
 <!-- GENERATED_CONTENT_START:case-studies -->
-- [Airbnb](case-studies/spark-on-kubernetes-a-practical-guide.md)
-- [Niantic](case-studies/niantic.md)
-- [Intuit](case-studies/supercharge-your-canary-deployments-with-argo-rollouts-step-plu-alexandre-gaudreault-zach-aller.md)
-- [Intuit](case-studies/intuit.md)
+- [Intuit](case-studies/supercharge-your-canary-deployments-with-argo-rollouts-step-plu-alexandre-gaudreault-zach-aller.md) - Supercharge Your Canary Deployments With Argo Rollouts Step Plu... Alexandre Gaudreault & Zach Aller
+- [Intuit](case-studies/intuit.md) - How Intuit Manages Cloud Resources Via GitOps
 <!-- GENERATED_CONTENT_END:case-studies -->
 
 ### Reference Architectures
 
 <!-- GENERATED_CONTENT_START:reference-architectures -->
-- [Airbnb](reference-architectures/airbnb.md)
-- [CERN](reference-architectures/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern.md)
+- [Airbnb](reference-architectures/airbnb.md) - Keynote: Scaling Geo-Temporal ML: How Pokémon Go Optimizes Global Gameplay With... Y. Liu & A. Zhang
+- [CERN](reference-architectures/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern.md) - The Hard Life of Securing a Particle Accelerator - Antonio Nappi & Sebastian Lopienski, CERN
 <!-- GENERATED_CONTENT_END:reference-architectures -->
 
 ---

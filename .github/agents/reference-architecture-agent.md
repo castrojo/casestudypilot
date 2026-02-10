@@ -678,32 +678,7 @@ echo "✅ Posted success comment to issue"
 
 ---
 
-### Step 18: Update README Index
-
-Update the README content list to include the new reference architecture:
-
-```bash
-python -m casestudypilot update-readme
-```
-
-**If content was added, commit the update:**
-
-```bash
-git add README.md
-git commit -m "Update README index with new reference architecture for $COMPANY_NAME"
-git push
-```
-
-**Check exit code:**
-- Exit 0: README updated successfully
-- Exit 1: Warning (no critical issues)
-- Exit 2: Critical error (stop workflow)
-
-This ensures the README index stays current with newly generated content. The PR will include this README update automatically.
-
----
-
-### Step 19: Cleanup
+### Step 18: Cleanup
 
 **Objective:** Clean up temporary files.
 

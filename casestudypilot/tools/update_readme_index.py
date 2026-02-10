@@ -5,43 +5,53 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
-def extract_company_from_markdown(file_path: Path) -> str:
+def extract_metadata_from_markdown(file_path: Path) -> Tuple[str, str]:
     """
-    Extract company name from markdown H1 heading.
+    Extract company name and video title from markdown file.
 
     Expected format:
         # [Company Name](url) Case Study
-        # [Company Name](url) Reference Architecture
+        > **Source:** [Video Title](youtube-url)
 
     Args:
         file_path: Path to markdown file
 
     Returns:
-        Company name extracted from H1, or title-cased filename slug as fallback
+        Tuple of (company_name, video_title)
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Match H1 with markdown link: # [Company](url) ...
+        # Extract company name from H1: # [Company](url) ...
         h1_pattern = r"^#\s+\[([^\]]+)\]"
-        match = re.search(h1_pattern, content, re.MULTILINE)
+        company_match = re.search(h1_pattern, content, re.MULTILINE)
 
-        if match:
-            return match.group(1)
+        if company_match:
+            company = company_match.group(1)
+        else:
+            # Fallback: convert filename slug to title case
+            company = file_path.stem.replace("-", " ").title()
 
-        # Fallback: convert filename slug to title case
-        # e.g., "intuit.md" -> "Intuit"
-        # e.g., "the-hard-life-of-securing.md" -> "The Hard Life Of Securing"
-        stem = file_path.stem
-        return stem.replace("-", " ").title()
+        # Extract video title from Source blockquote: > **Source:** [Title](url)
+        source_pattern = r">\s+\*\*Source:\*\*\s+\[([^\]]+)\]"
+        title_match = re.search(source_pattern, content, re.MULTILINE)
+
+        if title_match:
+            video_title = title_match.group(1)
+        else:
+            # Fallback: use filename as title
+            video_title = file_path.stem.replace("-", " ").title()
+
+        return company, video_title
 
     except Exception:
-        # If reading fails, use filename as fallback
-        return file_path.stem.replace("-", " ").title()
+        # If reading fails, use filename as fallback for both
+        fallback = file_path.stem.replace("-", " ").title()
+        return fallback, fallback
 
 
-def scan_directory(directory: Path, exclude_names: Optional[List[str]] = None) -> List[Tuple[str, Path, float]]:
+def scan_directory(directory: Path, exclude_names: Optional[List[str]] = None) -> List[Tuple[str, str, Path, float]]:
     """
     Scan directory for markdown files and extract metadata.
 
@@ -50,7 +60,7 @@ def scan_directory(directory: Path, exclude_names: Optional[List[str]] = None) -
         exclude_names: List of filenames to exclude (default: ["README.md"])
 
     Returns:
-        List of tuples: (company_name, file_path, mtime)
+        List of tuples: (company_name, video_title, file_path, mtime)
         Sorted by mtime descending (newest first)
     """
     if exclude_names is None:
@@ -65,22 +75,22 @@ def scan_directory(directory: Path, exclude_names: Optional[List[str]] = None) -
         if md_file.name in exclude_names:
             continue
 
-        company = extract_company_from_markdown(md_file)
+        company, video_title = extract_metadata_from_markdown(md_file)
         mtime = md_file.stat().st_mtime
-        files.append((company, md_file, mtime))
+        files.append((company, video_title, md_file, mtime))
 
     # Sort by mtime descending (newest first)
-    files.sort(key=lambda x: x[2], reverse=True)
+    files.sort(key=lambda x: x[3], reverse=True)
 
     return files
 
 
-def generate_index_list(files: List[Tuple[str, Path, float]], base_dir: Path) -> str:
+def generate_index_list(files: List[Tuple[str, str, Path, float]], base_dir: Path) -> str:
     """
     Generate markdown list for index.
 
     Args:
-        files: List of (company_name, file_path, mtime) tuples
+        files: List of (company_name, video_title, file_path, mtime) tuples
         base_dir: Base directory for calculating relative paths
 
     Returns:
@@ -90,13 +100,13 @@ def generate_index_list(files: List[Tuple[str, Path, float]], base_dir: Path) ->
         return "*(No content generated yet)*\n"
 
     lines = []
-    for company, file_path, _ in files:
+    for company, video_title, file_path, _ in files:
         # Get relative path from base_dir (e.g., "case-studies/intuit.md")
         if file_path.is_absolute():
             rel_path = file_path.relative_to(base_dir)
         else:
             rel_path = file_path
-        lines.append(f"- [{company}]({rel_path})")
+        lines.append(f"- [{company}]({rel_path}) - {video_title}")
 
     return "\n".join(lines) + "\n"
 

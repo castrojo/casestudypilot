@@ -381,33 +381,6 @@ Generated from: <video-url>
 - Include quality score and screenshot confirmation
 - Request review
 
-### Step 14: Update README Index
-
-Update the README content list to include the new case study:
-
-```bash
-python -m casestudypilot update-readme
-```
-
-**If content was added, commit the update:**
-
-```bash
-git add README.md
-git commit -m "Update README index with new case study for $COMPANY"
-git push
-```
-
-**Check exit code:**
-- Exit 0: README updated successfully
-- Exit 1: Warning (no critical issues)
-- Exit 2: Critical error (stop workflow)
-
-This ensures the README index stays current with newly generated content. The PR will include this README update automatically.
-
-### Step 15: Workflow Complete
-
-All steps completed successfully. The case study has been generated, validated, committed, and a pull request has been created with README index updated.
-
 ## Error Handling
 
 ### Pre-flight Validation Failed
