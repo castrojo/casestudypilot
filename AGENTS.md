@@ -901,6 +901,116 @@ pytest tests/ --cov=casestudypilot --cov-report=html
 - Verify all validation checkpoints work
 - Test error paths (what happens on failures?)
 
+## Epic Issues: Implementation Context Archive
+
+### Overview
+
+Major feature implementations are tracked via **epic issues** (label: `epic`). These serve as the **source of truth** for implementation history and context for future agents.
+
+**Why epic issues matter:**
+- 📋 Implementation plan link
+- 🧭 Architecture decisions and rationale
+- 🐛 Challenges encountered
+- ✅ Solutions applied
+- 🎓 Lessons learned
+- 🔗 Related PRs
+- 📝 Context for future work
+
+### When to Search Epic Issues
+
+**Always check epics when:**
+1. Working on existing features
+2. Debugging problems
+3. Planning related work
+4. Refactoring code
+5. Adding tests
+
+**Search commands:**
+```bash
+# List all epics
+gh issue list --label "epic" --state all
+
+# Search by keyword
+gh issue list --label "epic" --search "MCP server" --state all
+
+# View specific epic
+gh issue view 42
+```
+
+### Creating Epics
+
+**Automatic creation:**
+- `writing-plans` skill creates epic when plan is saved
+
+**Manual creation:**
+- User says "create an epic for plan X"
+- Use `epic-creation` skill with plan file path
+- Works with any plan format (flexible parsing)
+
+**For existing plans without epics:**
+```bash
+# Find plans missing epics
+for plan in docs/plans/*.md; do
+  if ! grep -q "Epic Issue:" "$plan"; then
+    echo "Missing epic: $plan"
+    # Use epic-creation skill
+  fi
+done
+```
+
+### Epic Structure
+
+```markdown
+## 🎯 Goal
+[One sentence]
+
+## 🏗️ Architecture
+[2-3 sentences]
+
+## 🛠️ Tech Stack
+[Technologies]
+
+## 📋 Plan File
+`docs/plans/filename.md`
+
+## ✅ Tasks
+- [ ] Task 1
+- [ ] Task 2
+
+---
+Status: ✅ Completed
+
+## 📚 Implementation Journey
+[Added after completion]
+```
+
+### Discovery Pattern
+
+Before changing unfamiliar code:
+
+1. Identify the feature/component
+2. Search epic issues
+3. Read epic for context
+4. Check plan file for details
+5. Review related PRs
+
+**Example:**
+```bash
+# Working on MCP client
+gh issue list --label "epic" --search "MCP" --state all
+gh issue view 42
+cat docs/plans/2026-02-09-integrate-mcp.md
+```
+
+### Epic Lifecycle
+
+- **Created:** When plan is written
+- **Updated:** When work completes
+- **Status:** Left open for reference
+- **Labels:** `epic`, `planning`, `completed`, `documented`
+
+---
+
 ## Support and Resources
 
 ### Documentation Hierarchy

@@ -1,0 +1,71 @@
+version: '3.8'
+
+# CNCF Landscape MCP Server for Local Development
+#
+# This docker-compose file provides a containerized MCP server for development.
+# The MCP client (casestudypilot/mcp_client.py) communicates with this server
+# via stdio (standard input/output) over Docker.
+#
+# CONTAINERIZATION ROADMAP:
+# This is step 1 of our containerization strategy. Future tasks will:
+# 1. Containerize the entire casestudypilot application
+# 2. Use Docker Compose networking instead of stdio
+# 3. Enable full orchestration without host dependencies
+# 4. Support CI/CD pipelines with zero host setup
+#
+# Current Architecture:
+# - Host runs casestudypilot Python code
+# - MCP client spawns Docker container on-demand via `docker run -i`
+# - Communication uses stdio pipes
+#
+# Target Architecture (Future):
+# - All services run in containers
+# - Docker Compose handles networking
+# - No Python dependencies on host
+# - Fully reproducible environment
+
+services:
+  landscape-mcp:
+    image: ghcr.io/cncf/landscape-mcp-server:main
+    container_name: landscape-mcp-server
+    command:
+      - "--data-url"
+      - "https://landscape.cncf.io/data/full.json"
+    stdin_open: true
+    tty: true
+    ports:
+      - "3000:3000"
+    environment:
+      # Optional: Override data source
+      # DATA_URL: "https://landscape.cncf.io/data/full.json"
+      
+      # Optional: Enable debug logging
+      # LOG_LEVEL: "debug"
+    restart: unless-stopped
+    
+    # Health check to verify server is responsive
+    healthcheck:
+      test: ["CMD", "echo", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# USAGE NOTES:
+#
+# Start the server:
+#   docker-compose up -d
+#
+# View logs:
+#   docker-compose logs -f landscape-mcp
+#
+# Stop the server:
+#   docker-compose down
+#
+# The casestudypilot MCP client will use `docker run -i` for on-demand
+# container spawning, not this compose file. This file is for:
+# - Manual testing and exploration
+# - Development server that stays running
+# - Understanding the MCP server configuration
+#
+# For production/CI, the MCP client handles container lifecycle automatically.

@@ -203,32 +203,31 @@ Multi-factor scoring across:
 
 ## Documentation
 
-### For Users
+- **`AGENTS.md`**: Operational guide for LLM agents working with this framework
+- **`CONTRIBUTING.md`**: How to extend with new skills, agents, and CLI tools
+- **`.github/copilot-instructions.md`**: Copilot agent configuration
+- **`docs/`**: Architecture decisions, API choices, and technical context
 
-📝 **GitHub Issue Workflow:** `docs/GITHUB-ISSUE-WORKFLOW.md` - How to submit case study requests  
-🎬 **Quick Start:** Go to [Issues → New → Case Study Request](../../issues/new/choose)
+## 📚 Implementation Context
 
-### For Implementing Agents
+Major features are tracked via **epic issues** (label: `epic`) containing:
+- Implementation plans and architecture
+- Challenges and solutions
+- Lessons learned
+- Context for future development
 
-📘 **Start here:** `docs/CONSTRAINTS.md` - Critical approval policy  
-📋 **Planning:** `docs/PLANNING.md` - Complete specifications  
-🔧 **Implementation:** `docs/IMPLEMENTATION-GUIDE.md` - Step-by-step tasks  
-🏗️ **Architecture:** `docs/API-KEY-DECISION.md` - Design rationale  
-📐 **Design:** `docs/plans/2026-02-09-design.md` - Original design document
+**Find epics:**
+```bash
+# List all epics
+gh issue list --label "epic" --state all
 
-### Quick Start for Users
+# Search by keyword
+gh issue list --label "epic" --search "feature-name" --state all
+```
 
-1. Go to [Issues → New Issue](../../issues/new/choose)
-2. Select "🎬 Case Study Request"
-3. Paste YouTube URL from CNCF channel
-4. Submit - the agent handles the rest!
+**Before modifying code**, check related epics to understand design decisions and avoid past mistakes.
 
-### Quick Start for Implementers
-
-1. Read `docs/CONSTRAINTS.md` (mandatory)
-2. Read `docs/PLANNING.md` (understand what to build)
-3. Follow `docs/IMPLEMENTATION-GUIDE.md` (step-by-step)
-4. **Request approval before creating any files**
+See [AGENTS.md](AGENTS.md#epic-issues-implementation-context-archive) for complete guide.
 
 ---
 
