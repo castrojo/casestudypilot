@@ -1,0 +1,106 @@
+name: Generate a Reference Architecture
+description: Generate a comprehensive reference architecture (2000-5000 words, 13 sections) from a YouTube video
+title: "[Reference Architecture] "
+labels: ["reference-architecture", "automation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Generate a comprehensive reference architecture suitable for CNCF Technical Advisory Board (TAB) submission.
+        
+        **Output:** 2000-5000 word technical document with 13 sections, 5+ CNCF projects, 3-layer architecture breakdown, 6+ screenshots, technical depth score ≥0.70.
+        
+        **Target audience:** Engineers, architects, platform teams
+        
+        **Requirements:**
+        - Video is 15-40 minutes long
+        - Discusses comprehensive architecture (5+ CNCF projects)
+        - Includes system diagrams or detailed technical content
+        - Covers integration patterns and implementation details
+
+  - type: input
+    id: youtube_url
+    attributes:
+      label: YouTube Video URL
+      description: Full YouTube URL from a CNCF event
+      placeholder: https://www.youtube.com/watch?v=VIDEO_ID
+    validations:
+      required: true
+
+  - type: input
+    id: company_name
+    attributes:
+      label: Company Name (Optional)
+      description: Provide if not clear from video title
+      placeholder: e.g., CERN, Adobe, Spotify
+
+  - type: textarea
+    id: cncf_projects
+    attributes:
+      label: Expected CNCF Projects (Optional)
+      description: List 5+ CNCF projects discussed in the video
+      placeholder: |
+        - Kubernetes
+        - Prometheus
+        - Istio
+        - Flagger
+        - Argo CD
+
+  - type: textarea
+    id: architecture_hints
+    attributes:
+      label: Architecture Patterns (Optional)
+      description: Known architecture patterns discussed
+      placeholder: |
+        - Multi-cluster orchestration
+        - Service mesh architecture
+        - Progressive delivery
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      options:
+        - label: Video has captions/subtitles enabled
+          required: true
+        - label: Video is at least 15 minutes long
+          required: true
+        - label: Video includes technical architecture discussion
+          required: true
+        - label: Company is a CNCF end-user member (if known)
+          required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Processing Pipeline
+        
+        The reference-architecture-agent will execute an 18-step workflow with 7 validation checkpoints:
+        
+        1. Fetch video data and validate transcript (≥2000 characters)
+        2. Extract and validate company identification
+        3. Verify CNCF membership
+        4. Correct transcript errors
+        5. Deep analysis (5+ projects, 3 architecture layers, integration patterns)
+        6. Extract 6+ screenshots at key timestamps
+        7. Generate architecture diagram specifications
+        8. Generate 13-section reference architecture (2000-5000 words)
+        9. Validate metrics for fabrication
+        10. Validate company consistency throughout document
+        11. Validate technical depth score (≥0.70)
+        12. Create pull request with TAB submission guide
+        
+        **Processing time:** Approximately 20 minutes
+        
+        **Output location:** `reference-architectures/company-platform.md` with 6+ screenshot images
+        
+        ## Critical Failure Scenarios
+        
+        The workflow will stop and post an error if:
+        - Transcript too short (<2000 characters)
+        - Company identification fails
+        - Deep analysis insufficient (<5 CNCF projects, missing architecture layers)
+        - Metrics lack transcript citations
+        - Company consistency fails (wrong company in content)
+        - Technical depth score too low (<0.60)

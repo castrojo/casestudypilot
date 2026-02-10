@@ -1,0 +1,100 @@
+name: Generate a Case Study
+description: Generate a business-focused case study (500-1500 words, 5 sections) from a YouTube video
+title: "[Case Study] "
+labels: ["case-study", "automation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Generate a business-focused case study showcasing CNCF project adoption and outcomes.
+        
+        **Output:** 500-1500 word document with 5 sections, 2+ CNCF projects, 3 screenshots, quality score ≥0.60.
+        
+        **Target audience:** Business leaders, executives, decision-makers
+        
+        **Requirements:**
+        - Video is 10-20 minutes long
+        - Focuses on business outcomes and ROI
+        - Discusses 2-3 CNCF projects
+        - Story-driven content
+
+  - type: input
+    id: youtube_url
+    attributes:
+      label: YouTube Video URL
+      description: Full YouTube URL from a CNCF event
+      placeholder: https://www.youtube.com/watch?v=VIDEO_ID
+    validations:
+      required: true
+
+  - type: input
+    id: company_name
+    attributes:
+      label: Company Name (Optional)
+      description: Provide if not clear from video title
+      placeholder: e.g., Intuit, Adobe, Spotify
+
+  - type: textarea
+    id: cncf_projects
+    attributes:
+      label: Expected CNCF Projects (Optional)
+      description: List CNCF projects discussed in the video
+      placeholder: |
+        - Kubernetes
+        - Prometheus
+        - Flagger
+
+  - type: textarea
+    id: business_outcomes
+    attributes:
+      label: Business Outcomes (Optional)
+      description: Known business metrics or outcomes discussed
+      placeholder: |
+        - Deployment frequency improvements
+        - Cost savings
+        - Developer productivity gains
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      options:
+        - label: Video has captions/subtitles enabled
+          required: true
+        - label: Video is at least 10 minutes long
+          required: true
+        - label: Company is a CNCF end-user member (if known)
+          required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Processing Pipeline
+        
+        The case-study-agent will execute a 14-step workflow with 5 validation checkpoints:
+        
+        1. Fetch video data and validate transcript (≥1000 characters)
+        2. Extract and validate company identification
+        3. Verify CNCF membership
+        4. Correct transcript errors
+        5. Analyze transcript (2+ projects, key metrics, 5 sections)
+        6. Extract 3 screenshots at key timestamps
+        7. Generate 5-section case study (500-1500 words)
+        8. Validate metrics for fabrication
+        9. Validate company consistency throughout document
+        10. Validate quality score (≥0.60)
+        11. Create pull request
+        
+        **Processing time:** Approximately 10 minutes
+        
+        **Output location:** `case-studies/company-name.md` with 3 screenshot images
+        
+        ## Critical Failure Scenarios
+        
+        The workflow will stop and post an error if:
+        - Transcript too short (<1000 characters)
+        - Company identification fails
+        - Analysis insufficient (<2 CNCF projects or incomplete sections)
+        - Company consistency fails (wrong company in content)
+        - Quality score too low (<0.60)
