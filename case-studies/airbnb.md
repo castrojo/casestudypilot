@@ -69,7 +69,7 @@ Operational efficiency improved significantly. Infrastructure deployment became 
 
 Key improvements:
 - **38% of production workload** migrated to Kubernetes successfully
-- **37% migration acceleration** from 1% to 38% in one month
+- **37 percentage point migration increase** from 1% to 38% in one month
 - **88% resource utilization** maintained at petabyte scale
 - **Better performance** than YARN in TPC-DS benchmarks
 - **Seamless scaling** handling spikes to 30,000-40,000 pods
