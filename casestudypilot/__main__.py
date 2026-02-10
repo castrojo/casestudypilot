@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -27,7 +27,14 @@ from casestudypilot.validation import (
 from casestudypilot.tools.validate_deep_analysis import main as validate_deep_analysis_main
 from casestudypilot.tools.validate_reference_architecture import main as validate_reference_architecture_main
 from casestudypilot.tools.assemble_reference_architecture import main as assemble_reference_architecture_main
-from casestudypilot.tools.validate_screenshots import validate_screenshots
+from casestudypilot.tools.github_client import fetch_github_profile, get_profile_completeness
+from casestudypilot.tools.multi_video_processor import fetch_multi_video_data
+from casestudypilot.tools.profile_assembler import assemble_presenter_profile
+# TODO: Implement these validation modules (future tasks)
+# from casestudypilot.validation.presenter import validate_presenter
+# from casestudypilot.validation.biography import validate_biography
+# from casestudypilot.validation.profile_update import validate_profile_update
+# from casestudypilot.validation.presenter_profile import validate_presenter_profile
 
 app = typer.Typer(name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False)
 console = Console()
@@ -627,13 +634,327 @@ def assemble_reference_architecture_cmd(
     sys.exit(exit_code)
 
 
-@app.command(name="validate-screenshots")
-def validate_screenshots_cmd(
-    markdown_file: Path = typer.Argument(..., help="Markdown file to validate"),
+@app.command(name="fetch-github-profile")
+def fetch_github_profile_cmd(
+    username: str = typer.Argument(..., help="GitHub username"),
+    output: Path = typer.Option(Path("github_profile.json"), "--output", "-o", help="Output JSON file path"),
 ):
-    """Validate screenshot uniqueness in generated markdown."""
-    exit_code = validate_screenshots(markdown_file)
-    sys.exit(exit_code)
+    """Fetch GitHub profile data for a presenter."""
+    try:
+        console.print(f"[cyan]Fetching GitHub profile:[/cyan] {username}")
+        profile = fetch_github_profile(username)
+
+        # Write to file
+        with open(output, "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=2)
+
+        console.print(f"[green]✓ Profile data saved to:[/green] {output}")
+
+        # Display profile info
+        if profile.get("success"):
+            console.print(f"[dim]Name:[/dim] {profile.get('name', 'N/A')}")
+            console.print(f"[dim]Bio:[/dim] {profile.get('bio', 'N/A')}")
+            console.print(f"[dim]Company:[/dim] {profile.get('company', 'N/A')}")
+            console.print(f"[dim]Public repos:[/dim] {profile.get('public_repos', 0)}")
+
+            # Display completeness score
+            completeness = get_profile_completeness(profile)
+            score_pct = completeness["score"] * 100
+            color = "green" if completeness["score"] >= 0.7 else "yellow" if completeness["score"] >= 0.4 else "red"
+            console.print(f"[{color}]Profile completeness:[/{color}] {score_pct:.0f}%")
+        else:
+            console.print(f"[red]✗ Failed to fetch profile[/red]")
+            console.print(f"[red]Error:[/red] {profile.get('error', 'Unknown error')}")
+            sys.exit(1)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+
+@app.command(name="fetch-multi-video")
+def fetch_multi_video_cmd(
+    urls: List[str] = typer.Argument(..., help="YouTube video URLs (space-separated)"),
+    output: Path = typer.Option(Path("videos_data.json"), "--output", "-o", help="Output JSON file path"),
+):
+    """Fetch data from multiple YouTube videos."""
+    try:
+        console.print(f"[cyan]Fetching data from {len(urls)} video(s)...[/cyan]")
+        result = fetch_multi_video_data(urls)
+
+        # Write to file
+        with open(output, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
+
+        console.print(f"[green]✓ Multi-video data saved to:[/green] {output}")
+
+        # Display summary
+        console.print(f"[dim]Total videos:[/dim] {result['total_videos']}")
+        console.print(f"[dim]Successful:[/dim] {result['successful']}")
+        console.print(f"[dim]Failed:[/dim] {result['failed']}")
+
+        if result["failed"] > 0:
+            console.print("\n[yellow]Failed videos:[/yellow]")
+            for video in result["videos"]:
+                if not video.get("success"):
+                    console.print(f"  [red]✗[/red] {video.get('url', 'Unknown URL')}")
+                    console.print(f"    [red]Error:[/red] {video.get('error', 'Unknown error')}")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+
+@app.command(name="validate-presenter")
+def validate_presenter_cmd(
+    presenter_name: str = typer.Argument(..., help="Presenter name to validate"),
+    videos_data: Path = typer.Argument(..., help="Multi-video data JSON file"),
+):
+    """Validate presenter name across multiple videos."""
+    try:
+        console.print(f"[cyan]Validating presenter:[/cyan] {presenter_name}")
+
+        # Load videos data
+        with open(videos_data, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        result = validate_presenter(presenter_name, data)
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
+                if check.details:
+                    console.print(f"    [dim]{check.details}[/dim]")
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)
+        elif result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-biography")
+def validate_biography_cmd(
+    biography: Path = typer.Argument(..., help="Biography JSON file"),
+):
+    """Validate generated biography quality."""
+    try:
+        console.print(f"[cyan]Validating biography from:[/cyan] {biography}")
+
+        # Load biography
+        with open(biography, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        result = validate_biography(data)
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
+                if check.details:
+                    console.print(f"    [dim]{check.details}[/dim]")
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)
+        elif result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-profile-update")
+def validate_profile_update_cmd(
+    existing_profile: Path = typer.Argument(..., help="Existing profile JSON file"),
+    new_videos: Path = typer.Argument(..., help="New videos data JSON file"),
+):
+    """Validate profile update for consistency."""
+    try:
+        console.print("[cyan]Validating profile update...[/cyan]")
+
+        # Load files
+        with open(existing_profile, "r", encoding="utf-8") as f:
+            existing_data = json.load(f)
+        with open(new_videos, "r", encoding="utf-8") as f:
+            new_data = json.load(f)
+
+        result = validate_profile_update(existing_data, new_data)
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
+                if check.details:
+                    console.print(f"    [dim]{check.details}[/dim]")
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)
+        elif result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="validate-presenter-profile")
+def validate_presenter_profile_cmd(
+    profile: Path = typer.Argument(..., help="Presenter profile JSON file"),
+    threshold: float = typer.Option(0.60, "--threshold", "-t", help="Minimum quality score threshold"),
+):
+    """Validate presenter profile quality with multi-factor scoring."""
+    try:
+        console.print(f"[cyan]Validating presenter profile:[/cyan] {profile}")
+
+        # Load profile
+        with open(profile, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        result = validate_presenter_profile(data, threshold)
+
+        # Display result
+        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+        if result.is_critical():
+            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+        elif result.has_warnings():
+            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+        else:
+            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+        # Display checks
+        for check in result.checks:
+            if not check.passed:
+                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+                color = "red" if check.severity == Severity.CRITICAL else "yellow"
+                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
+                if check.details:
+                    console.print(f"    [dim]{check.details}[/dim]")
+            else:
+                console.print(f"  [green]✓ {check.name}[/green]: {check.message}")
+
+        # Output JSON
+        console.print(f"\n[dim]Full validation result:[/dim]")
+        console.print(json.dumps(result.to_dict(), indent=2))
+
+        # Exit with appropriate code
+        if result.is_critical():
+            sys.exit(2)
+        elif result.has_warnings():
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(2)
+
+
+@app.command(name="assemble-presenter-profile")
+def assemble_presenter_profile_cmd(
+    biography: Path = typer.Argument(..., help="Biography JSON file"),
+    aggregation: Path = typer.Argument(..., help="Video aggregation JSON file"),
+    sections: Path = typer.Argument(..., help="Sections JSON file"),
+    existing_profile: Optional[Path] = typer.Option(
+        None, "--existing-profile", "-e", help="Existing profile markdown file (for updates)"
+    ),
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="Output markdown file path (auto-generated if not specified)"
+    ),
+):
+    """Assemble presenter profile from component JSON files."""
+    try:
+        console.print("[cyan]Assembling presenter profile...[/cyan]")
+
+        # Load JSON files
+        with open(biography, "r", encoding="utf-8") as f:
+            biography_data = json.load(f)
+        with open(aggregation, "r", encoding="utf-8") as f:
+            aggregation_data = json.load(f)
+        with open(sections, "r", encoding="utf-8") as f:
+            sections_data = json.load(f)
+
+        result = assemble_presenter_profile(
+            biography_data=biography_data,
+            aggregation_data=aggregation_data,
+            sections_data=sections_data,
+            existing_profile_path=existing_profile,
+            output_path=output,
+        )
+
+        console.print(f"[green]✓ Profile assembled:[/green] {result['output_path']}")
+        console.print(f"[dim]Presenter:[/dim] {result['presenter_name']} (@{result['github_username']})")
+        console.print(f"[dim]Version:[/dim] {result['profile_version']}")
+        console.print(f"[dim]Metadata:[/dim] {result['metadata_path']}")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        import traceback
+
+        console.print(f"[red]{traceback.format_exc()}[/red]")
+        sys.exit(2)
 
 
 def main():

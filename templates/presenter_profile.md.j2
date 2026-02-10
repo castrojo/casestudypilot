@@ -1,0 +1,59 @@
+---
+name: {{ name }}
+github: {{ github_username }}
+location: {{ location }}
+role: {{ role }}
+updated: {{ generated_date }}
+profile_version: {{ profile_version }}
+---
+
+# {{ name }} (@{{ github_username }})
+
+| 📊 Stats | |
+|----------|---------|
+| 🎤 **Total Talks** | {{ stats.total_talks }} presentation{{ 's' if stats.total_talks > 1 else '' }} |
+| 📅 **Years Active** | {{ stats.years_active }} |
+| 🔧 **Top Technology** | {{ stats.top_technology }} |
+| 🎯 **Primary Focus** | {{ stats.primary_focus }} |
+| 🌟 **GitHub Followers** | {{ stats.github_followers }} |
+| 🏢 **Organizations** | {{ stats.organizations }} |
+| ⏱️ **Total Speaking Time** | {{ stats.total_speaking_time }} |
+
+## Biography
+
+{{ biography }}
+
+## Expertise & Focus Areas
+
+{% for area in expertise_areas %}
+- {{ area }}
+{% endfor %}
+
+## CNCF Projects
+
+{% for project in cncf_projects %}
+- **{{ project.name }}** ({{ project.talk_count }} talk{{ 's' if project.talk_count != 1 else '' }}): {{ project.contexts }}
+{% endfor %}
+
+## Presentations
+
+{% for year_group in talks_by_year %}
+### {{ year_group.year }}
+
+{% for talk in year_group.talks %}
+**{{ talk.title }}**{% if talk.event %} - {{ talk.event }}{% endif %}
+- 🎥 Video: {{ talk.url }}
+- ⏱️ Duration: {{ talk.duration }}
+- Summary: {{ talk.summary }}
+- Topics: {{ talk.topics | join(', ') }}
+
+{% endfor %}
+{% endfor %}
+
+## Key Themes Across Talks
+
+{{ key_themes }}
+
+---
+
+*This profile is generated from publicly available information. Last updated: {{ generated_date }}*
