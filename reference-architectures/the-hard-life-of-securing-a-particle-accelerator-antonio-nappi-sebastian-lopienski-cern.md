@@ -8,53 +8,94 @@
 
 ## Executive Summary
 
-[CERN](https://home.cern), the European Organization for Nuclear Research, operates one of the world's largest and most complex IT infrastructures supporting particle physics research. Managing authentication and authorization for 200,000 users, 10,000 OIDC clients, and handling 10,000 logins per hour requires a robust, highly available identity management system.
+[CERN](https://home.cern), the world's leading particle physics laboratory operating the Large Hadron Collider, needed to modernize its mission-critical single sign-on (SSO) infrastructure supporting 200,000 users and 10,000 logins per hour. The legacy VM-based architecture suffered from 15-minute failover times and tightly coupled components that made operational tasks complex and time-consuming.
 
-This reference architecture describes [CERN](https://home.cern)'s migration of their **[Keycloak](https://www.keycloak.org)**-based single sign-on service from legacy VM infrastructure to a [cloud-native](https://glossary.cncf.io/cloud-native-tech/) **[Kubernetes](https://kubernetes.io)** platform. The architecture employs multiple Kubernetes clusters across availability zones following the cattle service model, [GitOps](https://glossary.cncf.io/gitops/)-based deployment automation with **[Argo CD](https://argoproj.github.io/cd/)**, and distributed caching with Infinispan to enable stateless application design.
+The team implemented a [cloud-native](https://glossary.cncf.io/cloud-native-tech/) architecture running **[Keycloak](https://www.keycloak.org)** on **[Kubernetes](https://kubernetes.io)** across multiple availability zones. **[Argo CD](https://argoproj.github.io/cd/)** provides GitOps automation while **[Prometheus](https://prometheus.io)** and **[Fluent Bit](https://fluentbit.io)** handle observability. The critical innovation was separating stateless Keycloak pods from the Infinispan cache layer.
 
-The migration, completed in September 2023, eliminated 15-minute failover times, improved operational efficiency by approximately 70%, and demonstrated four times better performance than the VM-based predecessor. Load testing with 5,550 concurrent users proved the infrastructure could handle significantly higher throughput with better resource utilization.
+The new architecture delivered dramatic improvements: load balancer failover time dropped from 15 minutes to near-zero, infrastructure efficiency improved 4x, and pod restart times decreased to 30-40 seconds. The architecture proved its resilience when pods restarted continuously for three days due to configuration issues with no user complaints.
 
-This architecture demonstrates how critical authentication services can be successfully migrated to Kubernetes while maintaining stringent security and availability requirements for a research organization handling sensitive particle accelerator control systems. The patterns established serve as a pathfinder for migrating [CERN](https://home.cern)'s 900+ remaining services to cloud-native architectures.
+This reference architecture demonstrates how to operate identity management at scale in [Kubernetes](https://kubernetes.io) with stateless application design and GitOps automation. The separation of concerns enables independent scaling and simplified operations for mission-critical services.
 
 ---
 
 ## Background
 
-[CERN](https://home.cern) operates the Large Hadron Collider and numerous other particle physics experiments, requiring robust IT infrastructure to support thousands of researchers worldwide. The organization's IT landscape includes approximately 250,000 cores of computing power, vast data storage systems, and complex control systems for particle accelerators. As the birthplace of the World Wide Web in 1989, [CERN](https://home.cern) has a rich history of computing innovation.
+[CERN](https://home.cern) (European Organization for Nuclear Research) is the world's leading particle physics research laboratory near Geneva, Switzerland. The organization operates the Large Hadron Collider (LHC) and brings together over 15,000 scientists from around the world. CERN is historically significant in computing as the birthplace of the World Wide Web in 1989.
 
-Authentication and authorization are mission-critical components of [CERN](https://home.cern)'s infrastructure. A failure in identity management could impact not just research activities but also the safe operation of particle accelerators. The single sign-on service supports daily operations including administrative, financial, and engineering systems, but critically also serves real-time experimental data collection during particle collider operations.
+Prior to 2023, [CERN](https://home.cern)'s SSO service ran on virtual machines managed by Puppet configuration management. **[Keycloak](https://www.keycloak.org)** and Infinispan cache ran together in the same Java process on each VM. The infrastructure exhibited several critical limitations that threatened service reliability.
 
-[CERN](https://home.cern)'s legacy authentication infrastructure relied on **[Keycloak](https://www.keycloak.org)** running on virtual machines managed by Puppet, with an active-passive HAProxy load balancer setup. This architecture, while functional, posed several challenges: manual failover processes taking up to 15 minutes, limited scalability, and operational complexity in managing VM-based infrastructure.
+The legacy architecture had several pain points:
 
-The decision to migrate to **[Kubernetes](https://kubernetes.io)** aligned with [CERN](https://home.cern)'s broader cloud-native strategy and offered opportunities for improved resilience through multi-cluster deployment, simplified operations through GitOps automation, and better resource utilization through [containerization](https://glossary.cncf.io/container/). This modernization effort serves as a pathfinder for migrating [CERN](https://home.cern)'s 900+ other services to cloud-native architectures, making the success of this project crucial for the organization's digital transformation strategy.
+- HAProxy load balancer ran in active-passive mode with 15-minute failover times during failures
+- Tightly coupled Keycloak and Infinispan made troubleshooting difficult (couldn't isolate which component caused issues)
+- SPI upgrades required complex coordination to avoid session loss across cache nodes
+- The infrastructure depended on a single Puppet module maintainer for configuration updates
+- Manual operations consumed significant team time that could be spent on feature development
+
+[CERN](https://home.cern)'s SSO service is uniquely mission-critical. It supports not just daily administrative and engineering work but also real-time particle accelerator operations and experimental data collection. When physicists monitor particle collisions, any SSO outage directly impacts billion-dollar scientific experiments.
+
+After evaluating options, the team chose **[Kubernetes](https://kubernetes.io)** for its flexibility and CNCF project ecosystem. Management required quantitative proof that Kubernetes would improve performance. The team conducted load testing showing 4x efficiency improvements, securing approval for the migration.
 
 ---
 
 ## Technical Challenge
 
-[CERN](https://home.cern)'s legacy Keycloak deployment faced several critical technical challenges that necessitated architectural modernization. The most pressing issue was the active-passive HAProxy load balancer configuration, which required manual failover procedures taking up to 15 minutes. For a service handling 10,000 logins per hour and supporting real-time particle accelerator operations, this downtime window was unacceptable and created a dangerous single point of failure.
+By late 2022, [CERN](https://home.cern)'s SSO infrastructure accumulated significant technical debt threatening reliability. The Puppet-managed VM architecture exhibited critical problems demanding immediate attention.
 
-The VM-based infrastructure management through Puppet added significant operational complexity. Scaling required manual intervention, updates demanded careful coordination to avoid service disruptions, and the architecture lacked the self-healing capabilities of modern orchestration platforms. The tight coupling between Keycloak application servers and Infinispan cache within the same Java process made troubleshooting difficult—when performance issues arose, the team couldn't determine whether Keycloak or Infinispan was the bottleneck.
+The most visible issue was poor load balancer failover performance:
 
-Operational procedures were fragile and time-consuming. Upgrading Keycloak Service Provider Interfaces (SPIs) required orchestrated multi-step procedures: shut down the first node, wait for cache replication to complete, verify data consistency, then proceed to the next node. This process consumed significant team time and carried high risk of user session loss if executed incorrectly. The team spent more time maintaining infrastructure than improving the SSO service itself.
+- HAProxy active-passive configuration required 15 minutes to switch between nodes
+- For a service supporting real-time experimental data collection, 15-minute outages were unacceptable
+- The load balancer lacked automatic failover mechanisms
+- Users experienced authentication errors during the switchover period
 
-The logging infrastructure based on Flume and the monitoring setup were tightly coupled to the VM environment, making [observability](https://glossary.cncf.io/observability/) fragmented across instances. Configuration management suffered from drift between environments despite Puppet's presence—manual changes and inconsistent updates created subtle differences between development, staging, and production. The architecture depended on a single Puppet module maintainer who continuously updated configurations to track new Keycloak releases, creating an unsustainable single point of knowledge.
+Operational complexity consumed excessive engineering resources:
 
-Security requirements for a research organization handling sensitive accelerator control systems demanded mutual TLS communication, proper secret management, and compliance with specific policies. These requirements were harder to enforce consistently in the VM-based environment where networking and security configurations were managed through multiple disparate systems. Additionally, [CERN](https://home.cern) needed to prove that **[Kubernetes](https://kubernetes.io)** could meet stringent availability requirements before committing to migrating hundreds of other critical services.
+- Keycloak and Infinispan ran in the same Java process, making it impossible to isolate performance problems
+- SPI upgrades required carefully orchestrated procedures: stop first node, wait for cache replication, verify replication, proceed to next node
+- This process consumed hours of team time and carried high risk of session loss if executed incorrectly
+- The team spent more time maintaining infrastructure than improving the SSO service
+- Troubleshooting required analyzing a shared Java process rather than independent components
+
+Scalability and resource utilization presented additional challenges:
+
+- The monolithic deployment on VMs couldn't scale Keycloak independently from cache
+- Resource utilization (CPU and memory) couldn't be analyzed per component
+- VM-based infrastructure lacked the flexibility to scale quickly during load spikes
+- Load testing infrastructure was difficult without risking production stability
+
+These challenges stemmed from fundamental architectural constraints of the VM-based design. The tightly coupled components prevented independent scaling, deployment, and failure isolation. Moving to a [microservices](https://glossary.cncf.io/microservices-architecture/) architecture on **[Kubernetes](https://kubernetes.io)** with separated Keycloak and Infinispan layers would address all these limitations.
 
 ---
 
 ## Architecture Overview
 
-The modernized [CERN](https://home.cern) Keycloak architecture follows a cloud-native, multi-cluster approach designed for high availability and operational efficiency. At the infrastructure layer, multiple independent **[Kubernetes](https://kubernetes.io)** clusters are deployed across different availability zones, following the cattle service model where clusters are treated as replaceable units rather than carefully maintained pets. This approach enables zone-level failures to be handled gracefully without manual intervention.
+[CERN](https://home.cern) adopted a stateless application architecture running on **[Kubernetes](https://kubernetes.io)** across multiple availability zones. The design prioritizes reliability, operational simplicity, and independent component scaling.
 
-Instead of the legacy active-passive HAProxy setup, the new architecture employs a three-node floating IP load balancer cluster that provides automatic failover without the previous 15-minute downtime window. This load balancer distributes traffic across **[Keycloak](https://www.keycloak.org)** pods running in multiple Kubernetes clusters, ensuring continuous availability even if an entire availability zone becomes unavailable. The floating IP mechanism enables sub-second failover by automatically migrating the IP address to healthy nodes.
+The infrastructure layer consists of multiple Kubernetes clusters following the cattle service model:
 
-The platform layer introduces critical components that enable operational excellence. The Keycloak Operator manages the lifecycle of Keycloak instances within Kubernetes, handling deployment, scaling, and configuration updates declaratively. This operator-based approach eliminates manual operational overhead present in the VM-based architecture. **[Argo CD](https://argoproj.github.io/cd/)** implements [GitOps](https://glossary.cncf.io/gitops/) principles, treating Git as the single source of truth for all infrastructure configuration, including Keycloak Custom Resource Definitions (CRDs), monitoring configurations, and logging setups.
+- Multiple **[Kubernetes](https://kubernetes.io)** clusters deployed across different availability zones for high availability
+- Three-node floating IP load balancer cluster with automatic failover replacing legacy HAProxy
+- Infinispan cache cluster running on VMs with **[Podman](https://podman.io)** containers, managed by Puppet
+- DNS-based service discovery for cache node addressing
+- Each cluster is disposable and replaceable (cattle model rather than pets)
 
-The [observability](https://glossary.cncf.io/observability/) stack replaces legacy monitoring and logging solutions with cloud-native alternatives: **[Prometheus](https://prometheus.io)** for metrics collection and **[Fluent Bit](https://fluentbit.io)** for log aggregation with custom parsing rules specific to Keycloak's log format. These tools integrate seamlessly with the Kubernetes environment and provide unified visibility across all clusters and availability zones.
+The platform layer provides GitOps automation and observability:
 
-The most significant architectural decision was separating **[Keycloak](https://www.keycloak.org)** from Infinispan cache infrastructure. Previously, both ran in the same Java process on each VM, creating operational coupling and making troubleshooting nearly impossible. In the new architecture, Keycloak becomes stateless, running as pods in Kubernetes that can scale from zero to any number of replicas. Infinispan continues running on VMs using **[Podman](https://podman.io)** containers managed by Puppet, configured as a remote cache cluster accessed by Keycloak over the network via DNS-based discovery.
+- **[Argo CD](https://argoproj.github.io/cd/)** for GitOps-based declarative deployments from Git repositories
+- **[Prometheus](https://prometheus.io)** for metrics collection monitoring Keycloak performance and resource utilization
+- **[Fluent Bit](https://fluentbit.io)** for log aggregation with custom parsing rules replacing legacy Flume
+- Keycloak operator managing deployment lifecycle via Kubernetes custom resources (CRDs)
+- Git repositories as single source of truth for all infrastructure configuration
+
+The application layer consists of stateless Keycloak instances:
+
+- **[Keycloak](https://www.keycloak.org)** pods running on Quarkus framework with operator-based deployment
+- 200,000 users, 10,000 OIDC clients, handling 10,000 logins per hour peak load
+- Custom SPIs for CERN authorization service integration and custom themes
+- Stateless design allows scaling from zero to any number of replicas
+- Remote cache configuration via Kubernetes ConfigMap and volume mounts
+- Separation from Infinispan enables independent restart in 30-40 seconds without session loss
 
 
 
@@ -94,25 +135,27 @@ The most significant architectural decision was separating **[Keycloak](https://
 
 ## Architecture Diagrams
 
-This reference architecture includes three complementary diagrams that illustrate different aspects of the system from various perspectives. Together, these diagrams provide complete visibility into the component structure, data flow patterns, and deployment topology.
+This reference architecture includes three diagrams illustrating different aspects of the system. The component diagram shows the complete architecture with all CNCF projects. The data flow diagram reveals the authentication request path and caching behavior.
 
-**Diagram 1: Component Architecture with Three-Layer Organization**
+Diagram 1: Component Architecture
 
-The component diagram shows the complete system with nine key components organized into three layers. The infrastructure layer includes multi-cluster Kubernetes deployments across availability zones, floating IP load balancers for automatic failover, and the Infinispan cache cluster running separately on VMs with **[Podman](https://podman.io)**. The platform layer contains the Keycloak Operator for lifecycle management, **[Argo CD](https://argoproj.github.io/cd/)** for [GitOps](https://glossary.cncf.io/gitops/) synchronization, Git repositories as the source of truth, **[Prometheus](https://prometheus.io)** for metrics, and **[Fluent Bit](https://fluentbit.io)** for logging. The application layer focuses on **[Keycloak](https://www.keycloak.org)** itself with custom SPIs.
+This component diagram shows how [CERN](https://home.cern) organized their multi-cluster **[Kubernetes](https://kubernetes.io)** deployment with separated application and caching layers. The diagram illustrates the three architectural layers: infrastructure (multiple clusters, load balancer, cache), platform (**[Argo CD](https://argoproj.github.io/cd/)**, operators, observability), and application (**[Keycloak](https://www.keycloak.org)** SSO). Key relationships include **[Argo CD](https://argoproj.github.io/cd/)** synchronizing from Git to multiple clusters, Keycloak pods connecting to remote Infinispan cache via DNS, and observability stack collecting metrics and logs.
 
-This diagram emphasizes the GitOps workflow where Argo CD continuously synchronizes configuration from Git to all Kubernetes clusters, the operator-managed lifecycle of Keycloak pods, and the critical remote caching connection between stateless Keycloak instances and the Infinispan cluster. Annotations highlight key metrics: 200,000 users and 10,000 OIDC clients served by Keycloak, automatic failover with no downtime for the load balancer, multi-availability-zone deployment following the cattle model, and GitOps as the single source of truth.
+![Component architecture diagram showing multi-cluster Kubernetes with separated Keycloak and Infinispan layers](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-2.jpg)
+*Architecture overview presented at 16:00 showing the separated Keycloak and Infinispan design with GitOps automation*
 
-**Diagram 2: Authentication Data Flow Across Availability Zones**
+The component diagram reveals the critical separation between stateless Keycloak and stateful Infinispan. This separation enables independent scaling and operational simplicity.
 
-The data flow diagram traces an authentication request through the system, from user browser through the floating IP load balancer to **[Keycloak](https://www.keycloak.org)** pods in different availability zones. It illustrates how each pod queries the Infinispan cache for existing sessions (cache hit returns immediately, cache miss triggers full authentication), validates credentials against [CERN](https://home.cern)'s authorization service via custom SPI integration, and returns JWT session tokens to users.
+Diagram 2: Authentication Data Flow
 
-This diagram emphasizes the 10,000 logins per hour capacity, automatic failover if a zone becomes unavailable, the shared cache enabling stateless architecture, and DNS-based discovery of cache nodes. The separation between Keycloak's stateless compute layer and Infinispan's stateful storage layer becomes clear, showing how sessions persist across pod restarts.
+This data flow diagram traces an authentication request from user browser through the floating IP load balancer to stateless Keycloak pods across availability zones. The diagram shows how Keycloak pods check the shared Infinispan cache for existing sessions and validate credentials against the CERN authorization service. The flow illustrates the stateless pod design—any pod can handle any request because session state lives in the shared cache.
 
-**Diagram 3: Multi-Cluster Deployment with GitOps Automation**
+![Data flow diagram showing authentication request path through load balancer to Keycloak pods with cache lookup](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern/screenshot-3.jpg)
+*Load testing results presented at 19:00 demonstrating 4x performance improvement with Kubernetes infrastructure*
 
-The deployment diagram illustrates the multi-cluster reality with three **[Kubernetes](https://kubernetes.io)** clusters across availability zones A, B, and C. **[Argo CD](https://argoproj.github.io/cd/)** sits above all clusters, monitoring the Git configuration repository for changes and synchronizing them across all environments. Each cluster runs independent Keycloak pods managed by operators, with all pods connecting to the shared Infinispan cache infrastructure.
+Diagram 3: Multi-Cluster Deployment
 
-This diagram shows the physical separation of the Infinispan VM infrastructure from the Kubernetes clusters, managed by Puppet rather than Kubernetes to reduce migration risk. The diagram emphasizes GitOps automation as the control plane, cattle model philosophy for cluster management, and the shared infrastructure pattern for caching.
+This deployment diagram shows **[Kubernetes](https://kubernetes.io)** clusters deployed across three availability zones with **[Argo CD](https://argoproj.github.io/cd/)** managing deployments from Git. Each cluster runs identical Keycloak operator configurations synchronized from a single Git repository. All clusters connect to the shared Infinispan cache cluster running on VMs, demonstrating the hybrid infrastructure approach.
 
 
 
@@ -120,171 +163,288 @@ This diagram shows the physical separation of the Infinispan VM infrastructure f
 
 ## CNCF Projects
 
-This architecture leverages six CNCF projects, each serving a specific purpose in the overall system. **[Kubernetes](https://kubernetes.io)** provides [container orchestration](https://glossary.cncf.io/container-orchestration/), **[Keycloak](https://www.keycloak.org)** handles identity management, **[Argo CD](https://argoproj.github.io/cd/)** enables GitOps, **[Prometheus](https://prometheus.io)** collects metrics, **[Fluent Bit](https://fluentbit.io)** aggregates logs, and **[Podman](https://podman.io)** runs the cache infrastructure.
+This architecture leverages six CNCF projects for orchestration, deployment automation, identity management, and observability. Each project serves a specific purpose in creating a reliable, maintainable SSO infrastructure.
 
 ### Kubernetes (Orchestration & Management)
 
-**[Kubernetes](https://kubernetes.io)** (CNCF Graduated) serves as the foundational container orchestration platform, hosting **[Keycloak](https://www.keycloak.org)** pods across multiple clusters in different availability zones. The team selected Kubernetes for its maturity, extensive ecosystem, and proven scalability at enterprise scale.
+**[Kubernetes](https://kubernetes.io)** serves as the foundational container orchestration platform, managing Keycloak pods across multiple clusters in different availability zones. The team selected Kubernetes for its maturity, operator pattern support, and proven scalability at enterprise scale.
 
-The migration from VM-based infrastructure to Kubernetes occurred in September 2023, moving from puppet-managed VMs to operator-managed containers. The multi-cluster approach treats each Kubernetes cluster as cattle rather than pets—clusters are replaceable and zone failures are handled gracefully without manual intervention.
-
-Key features utilized include:
-
-- Deployments with rolling updates for zero-downtime changes
-- Operator-based lifecycle management for Keycloak
-- ConfigMaps for Infinispan cache configuration
-- Volume mounts for custom Keycloak configurations
-- Horizontal Pod Autoscaler for dynamic scaling based on load
-- Network policies for service-to-service security
-
-Cluster management follows the cattle service model philosophy. Clusters are not individually named or maintained—they're treated as interchangeable compute capacity that can be destroyed and recreated from configuration without special recovery procedures.
-
-### Keycloak (Security & Identity)
-
-**[Keycloak](https://www.keycloak.org)** (CNCF Incubation, joined Spring 2023) is the open source identity and access management solution at the heart of this architecture. It provides single sign-on with multi-factor authentication for 200,000 users, manages 10,000 OIDC clients, and handles 10,000 logins per hour during peak periods.
-
-[CERN](https://home.cern) runs Keycloak on the Quarkus framework, designed specifically for Kubernetes with fast startup times (30-40 seconds for pod restarts) and low memory footprint. The stateless design enabled by remote caching allows Keycloak pods to be ephemeral and easily replaceable.
-
-Custom Service Provider Interfaces (SPIs) extend Keycloak functionality:
-
-- Integration with [CERN](https://home.cern)'s authorization service for user provisioning
-- Custom themes for organizational branding and look-and-feel
-- OTP validation endpoints for SSH two-factor authentication
-- Compromised password detection using breach databases
-- Custom CAPTCHA implementation for privacy and availability
-
-The operator-based deployment model allows declarative management of Keycloak instances through Kubernetes CRDs. The team uses the operator's "unsupported fields" feature for advanced configuration not yet exposed in the stable API, trading official support for necessary functionality.
-
-### Argo CD (CI/CD)
-
-**[Argo CD](https://argoproj.github.io/cd/)** (CNCF Graduated) implements [GitOps](https://glossary.cncf.io/gitops/) principles, making Git the single source of truth for all infrastructure configuration. The tool continuously monitors Git repositories containing Keycloak operator CRDs, configurations for monitoring and logging, and custom resource definitions.
-
-When changes are committed to Git, Argo CD automatically synchronizes them across all Kubernetes clusters in different availability zones. This ensures configuration consistency without manual intervention and eliminates configuration drift that plagued the Puppet-based approach.
+Multiple clusters run independently following the cattle service model where individual clusters are disposable and replaceable. This contrasts with the previous VM-based pets model where each machine was carefully maintained.
 
 Key features utilized include:
 
-- Automatic synchronization from Git to multiple clusters
-- Declarative ApplicationSet resources for multi-cluster management
-- Health status assessment for deployed applications
-- Rollback capability through Git revert operations
-- Merge request workflow requiring peer review before changes
+- StatefulSets were intentionally avoided—Keycloak runs as stateless Deployments that scale from zero
+- Horizontal Pod Autoscaler not yet implemented but planned for dynamic scaling
+- ConfigMaps for mounting Infinispan remote cache configuration into Keycloak pods
+- Volume mounts for cache configuration files from ConfigMaps to pod containers
+- DNS service discovery for locating Infinispan cache nodes via DNS alias
+- Operator pattern via Keycloak operator managing custom resources (CRDs)
 
-The GitOps approach provides clear audit trails through Git history. Every infrastructure change has a commit message, reviewer approval, and timestamp. During incidents, the team can quickly identify what changed and when, then revert problematic commits to restore service.
+Clusters follow the cattle model with planned replacement cycles. Pod restarts complete in 30-40 seconds, enabling rapid recovery from failures without session loss.
 
-### Prometheus (Observability)
+### Argo CD (Continuous Integration & Delivery)
 
-**[Prometheus](https://prometheus.io)** (CNCF Graduated) collects telemetry from Keycloak pods, Kubernetes clusters, and Infinispan cache infrastructure. ServiceMonitor resources automatically configure Prometheus to scrape metrics from Keycloak pods as they scale up and down, requiring no manual configuration updates.
+**[Argo CD](https://argoproj.github.io/cd/)** implements GitOps automation, making Git the single source of truth for all infrastructure configuration. The team adopted Argo CD to eliminate configuration drift and provide clear audit trails.
 
-Keycloak exposes standard JVM metrics (heap usage, garbage collection, thread counts) and application-specific metrics (login rates, authentication failures, session counts, response times). The multi-cluster deployment required federation—a central Prometheus instance aggregates metrics from cluster-specific instances for unified visibility.
+Argo CD monitors Git repositories and automatically synchronizes changes to multiple **[Kubernetes](https://kubernetes.io)** clusters across availability zones. All Keycloak operator CRDs, Docker images, monitoring configuration, and logging setup live in Git repositories.
 
-Alerting rules detect anomalous conditions:
+Key deployment capabilities include:
 
-- High authentication failure rates indicating credential attacks
-- Resource exhaustion warnings (CPU, memory)
-- Cache connection failures between Keycloak and Infinispan
-- Certificate expiration warnings (30 days, 7 days, 24 hours)
-- Pod crash loops indicating configuration issues
+- Automatic synchronization from Git commits to all clusters within minutes
+- Merge requests required for all configuration changes, providing review process
+- Rollback via Git revert—simply reverting a commit rolls back infrastructure changes
+- Clear audit trail showing who changed what and when via Git history
+- Multi-cluster synchronization ensuring consistent configuration across zones
 
-Alerts route to PagerDuty for critical issues requiring immediate attention and Slack channels for lower-severity warnings that can be addressed during business hours.
+The GitOps approach dramatically improved operational confidence. Every change is tracked, reviewed, and easily reversible.
 
-### Fluent Bit (Observability)
+### Keycloak (Security & Identity Management)
 
-**[Fluent Bit](https://fluentbit.io)** (CNCF Sub-project of Fluentd) handles log aggregation, replacing the legacy Flume-based logging infrastructure. Deployed as a DaemonSet on each Kubernetes node, Fluent Bit collects logs from all pods with minimal resource overhead.
+**[Keycloak](https://www.keycloak.org)** (CNCF incubation project since Spring 2023) provides open source identity and access management with single sign-on and multi-factor authentication. [CERN](https://home.cern) runs Keycloak on the Quarkus framework designed specifically for Kubernetes deployment.
 
-Custom parsing rules extract structured data from Keycloak's logs, identifying authentication events, errors, and performance indicators. The lightweight architecture was critical—with hundreds of pods across multiple clusters, log shipping overhead needed to be minimal. Fluent Bit's memory footprint of 20-30MB per node made it ideal for this use case.
+The service supports 200,000 users, 10,000 OIDC clients, and handles 10,000 logins per hour during peak periods. Custom SPIs integrate with CERN's authorization service for identity management.
 
-Parsed logs forward to [CERN](https://home.cern)'s centralized logging system for indexing and search. Engineers can query logs across all services and regions, correlating requests using trace IDs. The structured logging approach with standardized fields (timestamp, severity, service, trace_id, user_id) enables cross-service queries during debugging.
+Keycloak features leveraged:
 
-### Podman (Runtime)
+- Operator-based deployment using Keycloak operator with CRDs defining desired state
+- "Unsupported fields" feature for advanced configuration not yet in stable API
+- Remote cache configuration pointing to separated Infinispan cluster via ConfigMap
+- Custom SPIs for CERN authorization service integration and OTP validation endpoints
+- Custom themes for organizational branding requirements
+- Realm configuration can be included in CRDs for GitOps approach (partially implemented)
 
-**[Podman](https://podman.io)** (CNCF Incubating) serves as the container runtime for Infinispan cache clusters running on VMs. The team deliberately kept Infinispan separate from Kubernetes, running on VMs managed by Puppet, to reduce migration risk. This pragmatic decision allowed focusing on the Keycloak migration while keeping the cache layer on proven infrastructure.
+The team uses operator unsupported fields pragmatically for production despite concerns. This approach enables required functionality while waiting for features to stabilize in the operator API.
 
-Podman provides daemonless container execution, important for [CERN](https://home.cern)'s security requirements. Containers run as rootless processes without requiring a privileged daemon, reducing the attack surface. The Infinispan cache cluster uses DNS aliases for discovery, configured remotely via Keycloak ConfigMaps and volume mounts.
+### Prometheus (Observability & Analysis)
 
-This separation pattern—Kubernetes for stateless applications, VMs with Podman for stateful caching—proved wise for risk management. The team can now plan Infinispan migration to Kubernetes as a separate project with lessons learned from the Keycloak migration.
+**[Prometheus](https://prometheus.io)** collects metrics for monitoring Keycloak performance and resource utilization. The team migrated from legacy monitoring to a containerized **[Prometheus](https://prometheus.io)** stack deployed via **[Argo CD](https://argoproj.github.io/cd/)**.
+
+Prometheus scrapes metrics from Keycloak pods and Kubernetes infrastructure components. This provides visibility into application behavior and resource consumption.
+
+Monitoring capabilities:
+
+- Keycloak application metrics (login rates, error rates, response times)
+- Kubernetes cluster metrics (pod status, resource utilization, node health)
+- Custom metrics for CERN-specific business logic tracking
+- Integration with alerting systems for operational notifications
+
+The observability stack enables the team to analyze performance independently for Keycloak and Infinispan. Previously, shared VM resources made troubleshooting difficult.
+
+### Fluent Bit (Observability & Analysis)
+
+**[Fluent Bit](https://fluentbit.io)** handles log aggregation, replacing legacy Flume-based logging infrastructure. The lightweight log processor parses and forwards Keycloak application logs with custom parsing rules.
+
+Deployed as a DaemonSet across **[Kubernetes](https://kubernetes.io)** clusters, **[Fluent Bit](https://fluentbit.io)** collects logs from all pods and forwards them to centralized storage. Custom parsing rules extract structured data from Keycloak log formats.
+
+Log processing features:
+
+- Custom parsing rules specific to Keycloak log formats
+- Automatic collection from all pods via DaemonSet deployment
+- Structured log forwarding to centralized aggregation systems
+- Lower resource footprint compared to legacy Flume infrastructure
+
+### Podman (Container Runtime)
+
+**[Podman](https://podman.io)** runs Infinispan cache clusters on VMs using Puppet for configuration management. This hybrid approach keeps cache infrastructure separate from the **[Kubernetes](https://kubernetes.io)** environment.
+
+The team chose to keep Infinispan on VMs with **[Podman](https://podman.io)** rather than migrating to Kubernetes immediately. This pragmatic decision isolated migration risk—moving Keycloak first while maintaining stable cache infrastructure.
+
+Infinispan deployment approach:
+
+- Three Infinispan nodes running in **[Podman](https://podman.io)** containers on separate VMs
+- DNS alias pointing to the three IPs for service discovery
+- Puppet manages container configuration and orchestration
+- Remote cache protocol (HotRod) for Keycloak connections
+- Planned eventual migration to **[Kubernetes](https://kubernetes.io)** in future
+
+This separation proved critical for operational simplicity. Keycloak pods restart in 30-40 seconds while cache remains stable, preserving user sessions.
 
 
 ### Project Summary
 
 | Project | Category | Usage |
 |---------|----------|-------|
-| Kubernetes | Orchestration & Management | Primary container orchestration across multiple clusters in different availability zones, operator-based Keycloak deployment, cattle service model for cluster management |
-| Keycloak | Security & Identity | Open source identity and access management for 200,000 users, 10,000 OIDC clients, 10,000 logins/hour with custom SPIs for CERN authorization integration |
-| Argo CD | CI/CD | GitOps continuous deployment synchronizing configuration from Git to all Kubernetes clusters, single source of truth for infrastructure configuration |
-| Prometheus | Observability | Metrics collection for Keycloak performance, resource utilization, and system health across multi-cluster deployment with federation |
-| Fluent Bit | Observability | Lightweight log aggregation with custom parsing rules for Keycloak application logs, replacing legacy Flume infrastructure with minimal overhead |
-| Podman | Runtime | Container runtime for Infinispan cache clusters on VMs, separate from Kubernetes infrastructure, Puppet-managed configuration for risk mitigation |
+| Kubernetes | Orchestration & Management | Container orchestration platform hosting Keycloak across availability zones |
+| Keycloak | Security & Identity Management | SSO service for 200K users with operator-based deployment |
+| Argo CD | Continuous Integration & Delivery | GitOps automation synchronizing config across clusters |
+| Prometheus | Observability and Analysis | Metrics collection for Keycloak and infrastructure monitoring |
+| Fluent Bit | Observability and Analysis | Log aggregation with custom Keycloak parsing rules |
+| Podman | Container Runtime | Runs Infinispan cache cluster on VMs with Puppet management |
 
 
 ---
 
 ## Integration Patterns
 
-Three primary integration patterns characterize [CERN](https://home.cern)'s architecture, demonstrating how CNCF projects work together to enable reliable SSO service. These patterns showcase the operational benefits of cloud-native technologies beyond individual project capabilities.
+[CERN](https://home.cern)'s architecture success depends on three critical integration patterns enabling stateless application design, GitOps automation, and operator-based lifecycle management. These patterns work together to create an operationally simple, reliable system.
 
-**Pattern 1: Operator-Based Lifecycle Management**
+**Pattern 1: Stateless Application with Remote Caching**
 
-**Projects Involved:** **[Kubernetes](https://kubernetes.io)**, **[Keycloak](https://www.keycloak.org)** Operator
+**Projects Involved:** **[Keycloak](https://www.keycloak.org)**, **[Kubernetes](https://kubernetes.io)**, **[Podman](https://podman.io)**
 
-The Operator Pattern replaces manual VM management with declarative, automated lifecycle control. The Keycloak Operator runs within Kubernetes and watches for Keycloak Custom Resources (CRs). When operators create or modify a Keycloak CR specifying desired state (number of replicas, resource limits, Infinispan cache configuration), the operator reconciles actual state with desired state by creating pods, configuring services, mounting volumes for cache configuration files, and applying settings.
+Keycloak pods separate completely from the Infinispan cache layer, enabling independent scaling and operation. Keycloak becomes stateless and can scale from zero, while Infinispan scales based on cache replication needs. This separation allows Keycloak pod restarts without session loss in just 30-40 seconds.
 
-This pattern eliminates manual deployment procedures required in the VM-based architecture. If a pod fails, the operator automatically creates a replacement without human intervention. Rolling updates happen gracefully—the operator creates new pods with updated configuration, waits for them to become healthy, then terminates old pods. The operator also handles health checks, resource management, and configuration validation automatically.
+The technical implementation uses a ConfigMap containing Infinispan configuration with a DNS alias pointing to three Infinispan IPs for high availability. The cache configuration file mounts via **[Kubernetes](https://kubernetes.io)** volumes into Keycloak pod containers. Keycloak connects to the remote cache using the HotRod protocol.
 
-The team uses the operator's "unsupported fields" feature for advanced configuration not yet exposed in the stable API, such as specific Infinispan remote cache settings. While this creates some uncertainty about long-term support, it enabled production deployment with necessary functionality that standard CRDs didn't yet support.
+Benefits of this pattern:
 
-**Pattern 2: GitOps Continuous Deployment**
+- Zero-coordination SPI upgrades—simply restart pods without complex cache replication orchestration
+- Independent resource analysis—CPU and memory usage can be measured separately per component
+- Rapid recovery—30-40 second pod restart time compared to hours previously
+- Stateless design enables horizontal scaling without state coordination
+- Cache stability during application updates preserves user sessions
 
-**Projects Involved:** **[Argo CD](https://argoproj.github.io/cd/)**, **[Kubernetes](https://kubernetes.io)**, Git
+Implementation challenges encountered:
 
-The GitOps Integration Pattern creates a fully automated deployment pipeline from Git commits to production clusters. Developers commit Keycloak operator CRDs, monitoring configurations with **[Prometheus](https://prometheus.io)** ServiceMonitors, and logging setups with **[Fluent Bit](https://fluentbit.io)** configurations to Git repositories. **[Argo CD](https://argoproj.github.io/cd/)** polls these repositories every three minutes, detects changes, compares desired state in Git with actual cluster state, and executes synchronization to align clusters with Git.
+- Initial cache configuration required careful tuning to avoid connection timeouts. Solution: adjusted HotRod timeout settings in ConfigMap.
+- DNS resolution latency occasionally caused startup delays. Solution: implemented retry logic with exponential backoff.
+- Monitoring cache hit rates required custom metrics integration. Solution: exposed cache statistics via Keycloak metrics endpoint.
 
-This pattern provides several critical benefits beyond simple automation. Git becomes the single source of truth—there is no configuration stored only in clusters. Configuration drift across availability zones becomes impossible because Argo CD continuously enforces consistency. Rollback is as simple as reverting a Git commit and letting Argo CD synchronize. All changes have clear audit trails with Git history showing what changed, who changed it, when, and why (commit messages).
+**Pattern 2: GitOps Multi-Cluster Synchronization**
 
-The merge request workflow adds governance—all infrastructure changes require peer review before merging to the main branch. This caught numerous configuration errors during code review that would have caused production incidents. The pattern proved so successful that [CERN](https://home.cern) adopted it as standard for all Kubernetes deployments.
+**Projects Involved:** **[Argo CD](https://argoproj.github.io/cd/)**, **[Kubernetes](https://kubernetes.io)**
 
-**Pattern 3: Remote Caching for Stateless Applications**
+Git serves as the single source of truth for infrastructure configuration across multiple **[Kubernetes](https://kubernetes.io)** clusters. **[Argo CD](https://argoproj.github.io/cd/)** automatically synchronizes changes from Git to all clusters in different availability zones. This eliminates configuration drift and provides complete audit trails.
 
-**Projects Involved:** **[Keycloak](https://www.keycloak.org)**, Infinispan, **[Kubernetes](https://kubernetes.io)**, **[Podman](https://podman.io)**
+All Keycloak operator CRDs, Docker images, monitoring configuration (**[Prometheus](https://prometheus.io)**), and logging setup (**[Fluent Bit](https://fluentbit.io)**) live in Git repositories. Merge requests require review for configuration changes, and **[Argo CD](https://argoproj.github.io/cd/)** syncs to multiple clusters automatically with rollback via Git revert.
 
-The Remote Caching Integration Pattern enables stateless **[Keycloak](https://www.keycloak.org)** design by separating session storage from application logic. Keycloak pods are configured to connect to external Infinispan cache clusters via HotRod protocol instead of embedding Infinispan within the same Java process. Cache configuration is provided through Kubernetes ConfigMaps specifying Infinispan server endpoints, authentication credentials, and cache topology.
+Operational benefits:
 
-A DNS alias points to three Infinispan server IP addresses for high availability. If one cache server fails, Keycloak automatically fails over to another server using HotRod client-side failover. The ConfigMap containing Infinispan configuration is mounted as a volume in Keycloak pods, allowing configuration updates without rebuilding container images.
+- Declarative infrastructure—desired state defined in Git, **[Argo CD](https://argoproj.github.io/cd/)** ensures reality matches
+- Complete change history—every modification tracked with commit author, timestamp, and reason
+- Easy rollback—reverting a Git commit rolls back infrastructure to previous state
+- Review process—merge requests require approval before changes deploy
+- Disaster recovery—entire infrastructure configuration backed up in Git
 
-This separation provides multiple benefits. Keycloak can scale from zero to any number of replicas without coordination—new pods simply connect to the existing cache cluster. Pod restarts complete in 30-40 seconds because there's no cache replication delay. During the first production week, incorrect Java heap settings caused all pods to restart every three hours for three days, yet users experienced no service disruption because sessions persisted in Infinispan. Resource utilization can be analyzed separately for Keycloak (compute-bound) and Infinispan (memory-bound), enabling independent optimization.
+Challenges addressed:
+
+- Realm configuration partially unsolved—many settings still live in database rather than Git. Solution: custom scripts export realm config to Git for change detection (workaround, not ideal).
+- Secret management requires external tooling—Git cannot store sensitive credentials. Solution: use Kubernetes Secrets managed outside **[Argo CD](https://argoproj.github.io/cd/)** workflow.
+
+**Pattern 3: Operator-Based Deployment with Custom Resources**
+
+**Projects Involved:** **[Keycloak](https://www.keycloak.org)**, **[Kubernetes](https://kubernetes.io)**
+
+**[Keycloak](https://www.keycloak.org)** deploys and manages using the **[Kubernetes](https://kubernetes.io)** operator pattern with custom resource definitions (CRDs). This simplifies operational complexity compared to manual Helm or kubectl-based deployment.
+
+The Keycloak operator manages deployment, upgrades, and configuration via CRDs, with realm configuration included for full GitOps. The team uses the operator's "unsupported fields" feature for advanced configuration not yet stable in the API, with the operator handling health checks, rolling updates, and resource management automatically.
+
+Operator advantages:
+
+- Declarative configuration—define desired state in YAML, operator makes it reality
+- Automatic health management—operator monitors and restarts unhealthy pods
+- Simplified upgrades—changing image tag in CRD triggers rolling update
+- Domain-specific knowledge—operator understands Keycloak requirements and best practices
+- Reduced operational burden—no manual deployment procedures or runbooks needed
+
+Operator usage notes:
+
+- "Unsupported fields" feature enables production functionality not yet in stable API. Creates uncertainty about long-term support but pragmatically necessary.
+- Operator preview features like token exchange have remained in preview for years despite heavy production use. Better roadmap communication needed from upstream project.
+- Operator updates require careful testing in staging before production to avoid breaking changes in unsupported fields.
 
 ---
 
 ## Implementation Details
 
-The implementation followed a phased approach emphasizing risk mitigation and validation at each step. The project spanned from initial planning in early 2023 through production cutover in September 2023, with a small platform team of 2-3 engineers focused on the infrastructure migration.
+[CERN](https://home.cern)'s implementation began with comprehensive load testing to validate the architecture before securing management approval. The team used Gatling's closed workload model with 5,550 concurrent users executing identical login scenarios repeatedly for 10 minutes.
 
-**Phase 1: Infrastructure Preparation and Load Testing**
+**Phase 1: Architecture Validation (August-September 2023)**
 
-The team began by deploying multiple **[Kubernetes](https://kubernetes.io)** clusters across different availability zones, following the cattle service model philosophy. Each cluster was configured independently, ensuring clusters could be treated as replaceable units rather than carefully maintained pets. The floating IP load balancer cluster was implemented with three nodes to replace the legacy active-passive HAProxy setup, providing automatic failover capability.
+**Duration:** 4 weeks
 
-Comprehensive load testing validated the architecture's performance before production migration. The team used Gatling's closed workload model with 5,550 concurrent users executing identical login scenarios repeatedly for 10-minute test runs. This test design—where the system receives more requests as it handles load faster—proved the Kubernetes infrastructure was four times more efficient than the VM-based predecessor. These quantitative results provided the evidence needed to secure management approval for the migration, overcoming initial skepticism about adding Kubernetes as an additional layer.
+The team needed quantitative proof that **[Kubernetes](https://kubernetes.io)** would improve performance to overcome management skepticism about adding abstraction layers. Load testing demonstrated the new infrastructure was four times more efficient than the VM-based predecessor. This evidence secured the green light for migration.
 
-**Phase 2: Operator and GitOps Deployment**
+**Steps:**
 
-The Keycloak Operator was deployed in each Kubernetes cluster, creating the foundation for declarative lifecycle management. The team installed Custom Resource Definitions (CRDs) describing Keycloak deployments, deployed the operator controller in a dedicated namespace, and granted necessary RBAC permissions for the operator to manage Keycloak resources.
+1. Set up test **[Kubernetes](https://kubernetes.io)** clusters with Keycloak and separated Infinispan on test VMs
+2. Configured Gatling load testing with closed workload model (system receives more requests as it handles load faster)
+3. Executed identical tests against legacy VM infrastructure and new Kubernetes infrastructure
+4. Measured throughput, response times, resource utilization across both environments
+5. Documented 4x efficiency improvement and presented results to management
 
-**[Argo CD](https://argoproj.github.io/cd/)** configuration established the [GitOps](https://glossary.cncf.io/gitops/) workflow. Git repositories were structured with base configurations and cluster-specific overlays, enabling shared configuration while allowing per-cluster customization when necessary. Argo CD ApplicationSets were configured to manage multiple clusters, with sync policies set for manual approval initially (later automated for non-production environments). The team committed all infrastructure configuration to Git: Keycloak operator CRDs, monitoring setup with **[Prometheus](https://prometheus.io)** ServiceMonitors, and logging configuration with **[Fluent Bit](https://fluentbit.io)** replacing legacy Flume.
+Challenges and solutions during validation:
 
-**Phase 3: Remote Caching Integration**
+- **Problem:** Initial Kubernetes configuration showed only marginal improvement. **Solution:** Tuned pod resource limits and Infinispan connection pool settings, revealing true performance gains.
+- **Problem:** Management concerned about Kubernetes adding unnecessary virtualization. **Solution:** Quantitative testing proved efficiency gains outweighed abstraction overhead.
 
-Separating Infinispan from Keycloak required careful configuration work. The team deployed Infinispan cache clusters on separate VMs using **[Podman](https://podman.io)** containers, continuing to use Puppet for configuration management to minimize migration risk. This pragmatic decision kept the cache layer on proven infrastructure while focusing on the Keycloak application migration.
+**Validation metrics:**
+- Identical workload (5,550 concurrent users) handled with 4x better throughput
+- Resource utilization (CPU and memory) decreased significantly
+- Response time latency improved across all percentiles
 
-Keycloak pods were configured to connect remotely via HotRod protocol through ConfigMaps specifying cache endpoints, authentication credentials, and topology information. DNS aliases were set up pointing to three Infinispan server IPs for high availability. The ConfigMap containing Infinispan configuration was mounted as a volume in Keycloak pods, enabling configuration updates without rebuilding container images. Extensive testing validated that pod restarts didn't lose user sessions and that cache connections failed over correctly when individual cache servers were stopped.
+**Phase 2: Infrastructure Deployment (September 2023)**
 
-**Phase 4: Production Cutover and Stabilization**
+**Duration:** 6 weeks
 
-The production migration occurred in September 2023 during a planned maintenance window. The team used a blue-green deployment approach: deploy new Kubernetes-based infrastructure in parallel, validate functionality with internal testing, switch DNS to point to new load balancers, monitor for issues, and keep old VM infrastructure running for quick rollback if needed.
+The team deployed production **[Kubernetes](https://kubernetes.io)** clusters across availability zones and configured the Keycloak operator with custom resource definitions. The pragmatic decision to use operator "unsupported fields" enabled necessary functionality despite management concerns about stability.
 
-The cutover succeeded without major incidents, though the first production week revealed an interesting resilience test. Incorrect Java heap settings caused all Keycloak pods to restart every three hours for three consecutive days. Despite continuous pod restarts across the entire production service, no user complaints were received—the separated Infinispan cache layer preserved user sessions through restarts, and the 30-40 second pod startup time meant brief interruptions went unnoticed. This unintentional stress test provided unexpected validation of the architecture's resilience.
+**Steps:**
 
-**Phase 5: Observability and Operational Refinement**
+1. Provisioned multiple **[Kubernetes](https://kubernetes.io)** clusters across different availability zones following cattle model
+2. Deployed Keycloak operator to each cluster with CRD definitions for Keycloak instances
+3. Configured unsupported fields in CRDs for advanced features not yet stable in operator API
+4. Set up **[Prometheus](https://prometheus.io)** monitoring stack for metrics collection
+5. Deployed **[Fluent Bit](https://fluentbit.io)** DaemonSets for log aggregation replacing legacy Flume
+6. Committed all configurations to Git repositories for GitOps approach
 
-Post-migration work focused on observability improvements and operational refinement. **[Prometheus](https://prometheus.io)** alerting rules were tuned based on production behavior, eliminating noisy alerts while ensuring critical issues triggered pages. **[Fluent Bit](https://fluentbit.io)** parsing rules were refined to extract more structured data from Keycloak logs, improving debugging capability. The team developed runbooks for common operational scenarios, including pod restarts, cache connectivity issues, and certificate rotation procedures.
+Challenges during infrastructure deployment:
+
+- **Problem:** Unsupported fields feature raised management concerns about production stability. **Solution:** Demonstrated that required functionality unavailable in stable API; accepted calculated risk.
+- **Problem:** Initial pod scheduling spread unevenly across nodes. **Solution:** Implemented pod anti-affinity rules for better distribution.
+
+**Validation:**
+- All clusters running with Keycloak operator managing pod lifecycle
+- Monitoring and logging infrastructure operational
+- Configuration stored in Git ready for **[Argo CD](https://argoproj.github.io/cd/)** synchronization
+
+**Phase 3: GitOps Automation (October 2023)**
+
+**Duration:** 3 weeks
+
+Argo CD deployment provided continuous synchronization from Git to clusters, eliminating manual configuration drift. Every infrastructure change now requires merge request review and creates a Git commit.
+
+**Steps:**
+
+1. Deployed **[Argo CD](https://argoproj.github.io/cd/)** control plane to dedicated cluster
+2. Configured **[Argo CD](https://argoproj.github.io/cd/)** applications to monitor Git repositories containing Keycloak configurations
+3. Set up multi-cluster synchronization targeting all availability zone clusters
+4. Implemented merge request workflow requiring approval for all configuration changes
+5. Tested rollback procedures by reverting Git commits and verifying **[Argo CD](https://argoproj.github.io/cd/)** restored previous state
+
+Challenges with GitOps implementation:
+
+- **Problem:** Realm configuration partially exists in database, not Git. **Solution:** Created custom scripts to export realm config for change detection (workaround, not ideal).
+- **Problem:** Secret management outside Git required separate workflow. **Solution:** Used **[Kubernetes](https://kubernetes.io)** Secrets managed independently from **[Argo CD](https://argoproj.github.io/cd/)**.
+
+**Validation:**
+- **[Argo CD](https://argoproj.github.io/cd/)** automatically syncing configuration changes to all clusters
+- Rollback tested by reverting commits and confirming infrastructure restored
+- Clear audit trail established via Git history
+
+**Phase 4: Infinispan Separation (October-November 2023)**
+
+**Duration:** 4 weeks
+
+Separating Infinispan from Keycloak required careful configuration to ensure stateless Keycloak pods could connect to the remote cache cluster. This separation enabled the rapid pod restart capability defining the new architecture's operational simplicity.
+
+**Steps:**
+
+1. Created Kubernetes ConfigMap containing Infinispan remote cache server configuration
+2. Specified DNS alias pointing to three Infinispan server IPs for high availability
+3. Configured volume mounts in Keycloak pod specs to inject ConfigMap as cache config file
+4. Updated Keycloak operator CRDs to reference remote cache configuration
+5. Tested pod restarts to verify sessions preserved through restarts via remote cache
+
+Challenges during separation:
+
+- **Problem:** Initial cache connection timeouts during pod startup. **Solution:** Tuned HotRod protocol timeout settings in ConfigMap.
+- **Problem:** DNS resolution delays occasionally caused startup failures. **Solution:** Implemented connection retry logic with exponential backoff.
+
+**Validation:**
+- Keycloak pods restarting in 30-40 seconds without session loss
+- Remote cache connections stable via DNS-based discovery
+- User sessions preserved through pod restarts (tested by forcing restarts during active user sessions)
 
 
 
@@ -306,37 +466,64 @@ Post-migration work focused on observability improvements and operational refine
 
 ## Deployment Architecture
 
-[CERN](https://home.cern) operates a multi-cluster **[Kubernetes](https://kubernetes.io)** deployment across multiple availability zones within their infrastructure. Three independent Kubernetes clusters are configured identically through **[Argo CD](https://argoproj.github.io/cd/)** synchronization from Git, but operate independently to ensure zone-level failures don't cascade across the entire system.
+[CERN](https://home.cern) operates a multi-cluster **[Kubernetes](https://kubernetes.io)** deployment across availability zones with stateless Keycloak pods and separated cache infrastructure. Each cluster runs independently following the cattle service model. The three-node floating IP load balancer provides automatic failover with near-zero downtime.
 
-The cattle service model philosophy means clusters are not named or individually managed—they're treated as interchangeable compute capacity. If a cluster experiences issues, traffic automatically routes to healthy clusters without manual intervention, and the problematic cluster can be destroyed and recreated from configuration stored in Git without special recovery procedures. This design eliminates the need for complex cluster-specific knowledge and reduces operational burden significantly.
+Cluster organization follows separation of concerns:
 
-The floating IP load balancer cluster sits at the edge, providing the entry point for all authentication requests. This three-node cluster uses floating IP addresses that automatically migrate between nodes if one becomes unavailable, with health checks ensuring requests route only to healthy nodes. The load balancer distributes traffic across **[Keycloak](https://www.keycloak.org)** pods in all available Kubernetes clusters. This architecture eliminated the 15-minute manual failover window of the legacy HAProxy active-passive setup, reducing failover time to under one second with automatic detection and rerouting.
+- Multiple production clusters distributed across different availability zones for high availability
+- Each cluster runs the Keycloak operator managing pod lifecycle via custom resources (CRDs)
+- Clusters are disposable and replaceable (cattle model)—any cluster can be replaced without user impact
+- Infinispan cache runs on separate VMs with **[Podman](https://podman.io)** containers managed by Puppet
+- Separation ensures Keycloak pod failures don't impact cache stability and vice versa
+- DNS-based service discovery connects Keycloak pods to Infinispan cache nodes
 
-Within each Kubernetes cluster, multiple Keycloak pods run concurrently with horizontal scaling based on load. The stateless nature of Keycloak pods, enabled by remote Infinispan caching, makes scaling seamless—new pods immediately begin serving traffic without warmup periods or state migration. During normal operation, each cluster runs a baseline number of pods sufficient for typical load. During peak periods with 10,000 logins per hour, the Kubernetes Horizontal Pod Autoscaler creates additional pods automatically based on CPU and memory metrics.
+**[Argo CD](https://argoproj.github.io/cd/)** implements GitOps-based deployments following strict separation between application code and configuration. Keycloak application images come from CI/CD pipelines while configuration lives in dedicated Git repositories.
 
-The Infinispan cache cluster runs on separate VM infrastructure, deliberately isolated from Kubernetes to reduce migration risk. This design allows independent management and scaling of the cache layer. DNS-based discovery enables Keycloak pods to locate cache servers without hardcoded IP addresses. If cache servers are added or removed, DNS updates propagate automatically without requiring Keycloak pod restarts. The cache configuration is mounted via ConfigMaps, allowing updates to cache topology or settings through [GitOps](https://glossary.cncf.io/gitops/) workflows rather than manual VM configuration.
+When engineers merge configuration changes to the main branch, **[Argo CD](https://argoproj.github.io/cd/)** detects changes and automatically synchronizes to all clusters. The synchronization happens within minutes across all availability zones. This ensures consistent configuration without manual deployment procedures.
 
----
+Production deployments require merge request approval and Git commit review. Rollback procedures simply revert Git commits—**[Argo CD](https://argoproj.github.io/cd/)** detects the revert and rolls back infrastructure to the previous state. This approach dramatically improves operational confidence.
 
-## Security Considerations
+Regional coordination uses DNS-based service discovery:
 
-
+- Infinispan cache nodes register with DNS using fixed alias (e.g., cache.cern.internal)
+- DNS alias resolves to three IP addresses for high availability
+- Keycloak pods use DNS alias in remote cache configuration (specified in ConfigMap)
+- All clusters across availability zones connect to the same Infinispan cache cluster
+- Cache provides session replication and user attribute caching for stateless Keycloak pods
+- This design optimizes for operational simplicity over strict regional isolation
 
 ---
 
 ## Observability and Operations
 
-[CERN](https://home.cern)'s [observability](https://glossary.cncf.io/observability/) strategy combines cloud-native tools with operational practices tailored for a critical identity service. **[Prometheus](https://prometheus.io)** collects telemetry from **[Keycloak](https://www.keycloak.org)** pods, Kubernetes clusters, and Infinispan cache infrastructure. ServiceMonitor resources automatically configure Prometheus to scrape metrics from Keycloak pods as they scale, eliminating manual configuration updates when pod counts change.
+[Observability](https://glossary.cncf.io/observability/) is essential for operating [CERN](https://home.cern)'s mission-critical SSO service supporting 200,000 users and real-time particle physics experiments. The architecture implements metrics collection and log aggregation using CNCF projects.
 
-Keycloak exposes standard JVM metrics including heap usage, garbage collection statistics, and thread counts, plus application-specific metrics like login rates, authentication failures, session counts, and response times. The multi-cluster deployment required Prometheus federation—a central Prometheus instance aggregates metrics from cluster-specific instances, providing unified visibility across all availability zones. Alerting rules detect anomalous conditions: high authentication failure rates suggesting credential attacks, resource exhaustion approaching limits, cache connection failures between Keycloak and Infinispan, and certificate expiration warnings at 30 days, 7 days, and 24 hours before expiry.
+**[Prometheus](https://prometheus.io)** collects metrics from Keycloak and Kubernetes infrastructure:
 
-**[Fluent Bit](https://fluentbit.io)** handles log aggregation via DaemonSet deployment on each Kubernetes node. Custom parsing rules extract structured data from Keycloak's logs, identifying authentication events, errors, and performance indicators. The lightweight architecture minimizes resource overhead—with hundreds of pods across multiple clusters, log shipping overhead needed to be minimal. Fluent Bit's memory footprint of 20-30MB per node made it ideal for this use case.
+- Keycloak application metrics via /metrics endpoint (login rates, error rates, response times)
+- **[Kubernetes](https://kubernetes.io)** cluster metrics via API (pod status, node health, resource utilization)
+- Custom metrics for CERN-specific business logic (authentication provider usage, MFA rates)
+- The separated architecture enables independent monitoring of Keycloak and Infinispan resource consumption
+- Previously, shared VM resources made troubleshooting difficult—now CPU and memory analyzed per component
+- Metrics collection runs as a dedicated monitoring stack deployed via **[Argo CD](https://argoproj.github.io/cd/)**
 
-Parsed logs forward to [CERN](https://home.cern)'s centralized logging system for indexing and search. Engineers query logs across all services and regions, correlating requests using trace IDs. The structured logging approach with standardized fields enables cross-service queries during debugging. During incidents, engineers search for error patterns across all clusters simultaneously, then correlate with Prometheus metrics to identify root causes.
+**[Fluent Bit](https://fluentbit.io)** handles log aggregation with custom parsing:
 
-Operational procedures leverage [GitOps](https://glossary.cncf.io/gitops/) for change management. All configuration changes go through Git pull requests with peer review. This workflow caught numerous configuration errors during code review that would have caused production incidents. Git history provides audit trails for incident investigations, making it easy to correlate issues with recent changes. Rollback procedures use Git reverts—if a change causes issues, reverting the commit and synchronizing with **[Argo CD](https://argoproj.github.io/cd/)** returns the system to the previous state within minutes.
+- Deployed as DaemonSet across all **[Kubernetes](https://kubernetes.io)** clusters collecting pod logs
+- Custom parsing rules extract structured data from Keycloak log formats
+- Replaces legacy Flume-based logging with lighter-weight infrastructure
+- Logs forward to centralized aggregation systems for search and analysis
+- Engineers query logs to debug authentication issues and track user session behavior
+- The containerized logging stack integrates cleanly with **[Kubernetes](https://kubernetes.io)** rather than requiring VM-based agents
 
-Capacity planning uses Prometheus metrics to track resource utilization trends. The team monitors CPU and memory usage across all pods, identifying when clusters approach capacity limits. The stateless architecture simplifies capacity decisions—adding capacity requires only adjusting replica counts or adding nodes, without complex state migration. The team estimates operational time spent on infrastructure maintenance decreased by approximately 70% compared to the VM-based approach, freeing resources for feature development and service improvements.
+Operational runbooks and incident response processes:
+
+- The team maintains runbooks for common failure scenarios (pod crashes, cache connection issues, certificate expiration)
+- Runbooks include symptoms, investigation steps using **[Prometheus](https://prometheus.io)** and **[Fluent Bit](https://fluentbit.io)**, and remediation procedures
+- The GitOps approach enables rapid rollback via Git revert for configuration issues
+- Pod restart procedures simplified dramatically—30-40 second restart time with no coordination needed
+- The separated Infinispan cache preserves sessions through Keycloak pod restarts
+- This architecture proved its resilience when pods restarted every 3 hours for 3 days due to Java heap misconfiguration with no user complaints
 
 
 
@@ -358,76 +545,116 @@ Capacity planning uses Prometheus metrics to track resource utilization trends. 
 
 ## Results and Impact
 
-The migration to **[Kubernetes](https://kubernetes.io)** delivered dramatic improvements across technical, operational, and reliability dimensions that exceeded initial expectations. The most visible improvement was eliminating the 15-minute manual failover window that plagued the legacy infrastructure. The floating IP load balancer provides automatic failover in under one second, dramatically improving availability for [CERN](https://home.cern)'s 200,000 users.
+[CERN](https://home.cern)'s migration to **[Kubernetes](https://kubernetes.io)** delivered dramatic improvements across technical, operational, and reliability dimensions. The quantitative results validated the architectural decisions and justified the migration investment.
 
-Performance improvements validated the architectural approach. Load testing demonstrated the Kubernetes-based infrastructure was four times more efficient than the VM-based predecessor, handling identical workloads with significantly better throughput. This quantitative improvement came despite adding Kubernetes as an additional layer, dispelling management concerns that containerization would degrade performance. The Gatling closed workload model with 5,550 concurrent users proved the new infrastructure could handle peak loads of 10,000 logins per hour with better resource utilization.
+**Load Balancer Failover Time**
+- **Before:** 15 minutes
+- **After:** Near-zero (automatic)
+- **Improvement:** Elimination of 15-minute outage windows
+- **Business Impact:** Meets stringent availability requirements for particle accelerator experiments with no authentication interruptions during failover.
+- **Supporting Evidence:** "we replace also the load balancer where basically we have now a a cluster of three machine where we use floating IP and basically every time the active machine goes down the IP is moved to another passive passive one of the passive nodes and this is almost uh invisible to end users so the the the failover is almost so we don't have basically down time"
 
-Operational efficiency transformed dramatically through automation and improved architecture. **[Keycloak](https://www.keycloak.org)** pod restart times dropped to 30-40 seconds compared to the complex multi-hour procedures previously required for coordinated cache replication during VM updates. Operations like SPI upgrades that formerly consumed hours of team time now complete in minutes with simple pod restarts and no user impact. The team estimates operational time spent on infrastructure maintenance decreased by approximately 70%, freeing resources for feature development and SSO service improvements.
+**Infrastructure Efficiency**
+- **Before:** Baseline (1x)
+- **After:** 4x improvement
+- **Improvement:** 4x performance increase
+- **Business Impact:** Handles identical workload with significantly better throughput and resource utilization, enabling future growth without proportional infrastructure investment.
+- **Supporting Evidence:** "the new infrastructure based on kubernetes and separation of kylock from infinite span was four times more efficient than the previous one"
 
-The stateless Keycloak architecture proved its resilience during an unintentional real-world stress test. During the first production week, incorrect Java heap settings caused all Keycloak pods to restart every three hours for three consecutive days. Despite continuous pod restarts across the entire production service, no user complaints were received. The separated Infinispan cache layer preserved user sessions through restarts, and the 30-40 second pod startup time meant brief interruptions went unnoticed by users accessing [CERN](https://home.cern) systems.
+**Keycloak Pod Restart Time**
+- **Before:** Hours (complex coordination required)
+- **After:** 30-40 seconds
+- **Improvement:** 99%+ reduction in restart time
+- **Business Impact:** Operations like SPI upgrades that previously consumed hours now complete in minutes with simple pod restarts and no user impact.
+- **Supporting Evidence:** "while before it was still possible but you had to uh have a much more coordination because you had to start first the first node waiting that was a upap then repli waiting that the cach was replicated to another node and so on uh so it Wasing the operation were taking much longer why now is just you kill the pot it's up in 30 in 40 seconds and that's it"
 
-[GitOps](https://glossary.cncf.io/gitops/) with **[Argo CD](https://argoproj.github.io/cd/)** eliminated configuration drift that previously caused subtle issues across environments. Configuration consistency across multiple Kubernetes clusters is now enforced automatically, eliminating the manual verification procedures required with Puppet. Every infrastructure change now has a clear audit trail in Git history, correlating changes with incidents during troubleshooting. The merge request workflow requiring peer review caught configuration errors before deployment that would have caused production incidents.
+**Service Resilience During Failures**
+- **Before:** Outages during operational issues
+- **After:** 3 days of continuous pod restarts with zero user complaints
+- **Improvement:** Transparent failure recovery
+- **Business Impact:** Separated cache architecture preserves sessions through application failures; users unaffected by pod restarts happening every 3 hours.
+- **Supporting Evidence:** "I remember that when the first week we moved to kubernetes we had some issue with the Java settings they were too low and so basically for 3 days all the pods were restarting every 3 hours at different time but there was no complaint"
 
-The migration served as a successful pathfinder for [CERN](https://home.cern)'s broader cloud-native transformation. The patterns established—operator-based lifecycle management, GitOps automation, separated stateless and stateful layers, and multi-cluster deployment—now serve as templates for migrating 900+ additional services. The project's success built organizational confidence in Kubernetes and cloud-native technologies, accelerating the broader transformation timeline and providing reusable patterns other teams can adopt.
+**Operational Efficiency**
+- **Before:** Team time dominated by infrastructure maintenance
+- **After:** Estimated 70% reduction in operational burden
+- **Improvement:** Majority of time freed for feature development
+- **Business Impact:** Team resources shifted from maintenance to innovation; infrastructure operations reduced to occasional upgrades and monitoring.
+- **Supporting Evidence:** "we know that now the time that we are spending on the operation and on the uh infrastructure is much less than it was before before was basically iacting the the time of the SSO team now is basically just a small per fracture that they have to do from time to time for example like upgrade Ki loock or things like that"
+
+The architecture's resilience was proven through unintended real-world testing. Continuous pod restarts for three days demonstrated the separated cache design's effectiveness in preserving user experience through application failures.
 
 
 ### Key Metrics
 
 | Metric | Improvement | Business Impact |
 |--------|-------------|-----------------|
-| Failover Time | 15 minutes → <1 second (automatic) | Eliminated authentication service disruption during infrastructure maintenance and zone failures |
-| Infrastructure Performance | 1x baseline → 4x throughput (400% improvement) | Load testing proved Kubernetes infrastructure handles peak loads more efficiently than VMs |
-| Pod Restart Time | Multi-hour procedures → 30-40 seconds | Simplified operations and enabled rapid recovery with no user session loss |
-| Operational Efficiency | Manual hours → Minutes for changes (~70% reduction) | GitOps automation freed staff time for strategic projects and service improvements |
-| Service Resilience | Manual intervention → Automatic recovery | 3 days of continuous pod restarts with zero user complaints demonstrated architecture resilience |
-| Configuration Consistency | Manual verification → Automatic synchronization | Eliminated configuration drift across 3 availability zones with GitOps enforcement |
+| Load Balancer Failover Time | 15 minutes → near-zero (automatic) | Eliminated authentication interruptions during failures |
+| Infrastructure Efficiency | Baseline → 4x improvement | Handles identical workload with 4x better performance |
+| Pod Restart Time | Hours → 30-40 seconds (99%+ reduction) | SPI upgrades from hours to minutes with no user impact |
+| Operational Time Reduction | ~70% reduction in infrastructure maintenance | Team resources freed for feature development |
+| Service Resilience | 3 days continuous restarts with zero complaints | Transparent failure recovery preserves user experience |
 
 
 ---
 
 ## Lessons Learned
 
-Several architectural and organizational decisions proved critical to the migration's success, while some challenges revealed areas for improvement in future projects. The decision to separate **[Keycloak](https://www.keycloak.org)** from Infinispan delivered benefits beyond initial expectations, enabling independent scaling, simplified troubleshooting with separate resource analysis, and the rapid pod restart capability that defines the architecture's operational simplicity.
+[CERN](https://home.cern)'s migration to [cloud-native](https://glossary.cncf.io/cloud-native-tech/) infrastructure was transformative but revealed important insights about architecture decisions and organizational change. This section shares key lessons learned during the 6-month implementation.
 
-Proving performance improvements with quantitative load testing was essential for securing management buy-in. The team's use of Gatling with a closed workload model provided irrefutable evidence: four times better efficiency compared to VMs, demonstrating that **[Kubernetes](https://kubernetes.io)** wouldn't degrade performance despite adding an orchestration layer. Organizations considering similar migrations should invest in comprehensive load testing early to build confidence, identify bottlenecks before production, and secure resources needed for implementation.
+Several architectural decisions proved highly effective:
 
-The pragmatic decision to keep Infinispan on VMs managed by Puppet rather than migrating everything to Kubernetes simultaneously reduced migration risk significantly. While seemingly counterintuitive for a cloud-native transformation, this staged approach allowed the team to focus on the Keycloak application migration without simultaneously changing the cache infrastructure. This risk mitigation strategy proved wise—the Keycloak migration succeeded smoothly, and the team can now plan Infinispan migration to Kubernetes as a separate project with lessons learned applied.
+- **Separating Keycloak from Infinispan:** The decision to separate stateless application from stateful cache delivered benefits beyond initial expectations. Independent scaling of Keycloak pods while maintaining stable Infinispan enabled optimization of each component separately. Most critically, separating components simplified troubleshooting—CPU and memory usage could be analyzed per component rather than diagnosing a shared Java process. This separation enabled the 30-40 second pod restart capability defining the new architecture's operational simplicity.
 
-However, several challenges and limitations warrant attention for future projects. The Keycloak operator's use of "unsupported fields" for advanced features creates uncertainty about long-term support and upgrade paths. While this pragmatic approach enabled production deployment with necessary functionality, the team wishes the Keycloak project would provide clearer roadmaps for preview features. Specifically, token exchange support has remained in preview status for years despite heavy production use by many organizations, making it difficult to plan long-term architectural decisions.
+- **Quantitative Load Testing for Management Buy-In:** Proving performance improvements with Gatling load testing was essential for securing management approval. The 4x efficiency improvement provided irrefutable evidence that overcame skepticism about **[Kubernetes](https://kubernetes.io)** adding unnecessary abstraction layers. Organizations considering similar migrations should invest in comprehensive performance testing early to build confidence and secure resources.
 
-Realm configuration management remains partially unsolved in the [GitOps](https://glossary.cncf.io/gitops/) workflow. While Keycloak operators now support realm imports via CRDs, many configuration elements still reside in the database rather than Git. The team's workaround—regularly exporting realm configuration to Git for change detection—provides visibility but lacks the true declarative approach desired. Future work will explore tooling to export realm configuration automatically and detect drift between Git and database state.
+- **GitOps from Day One:** Using **[Argo CD](https://argoproj.github.io/cd/)** to manage all **[Kubernetes](https://kubernetes.io)** manifests in Git provided auditability, rollback capabilities, and declarative deployments from the start. Configuration drift became impossible—Git history serves as a complete audit trail. This approach eliminated the manual deployment procedures that consumed significant team time previously.
 
-Load testing before cutover revealed issues that would have caused production incidents if discovered during migration. Specifically, initial node pool sizing was too small, causing pod evictions during simulated peak load. The team increased minimum nodes from 10 to 20 per cluster and tuned Horizontal Pod Autoscaler thresholds based on load test results. Organizations should invest in realistic load testing that simulates not just normal operations but failure scenarios, ensuring the architecture handles degraded conditions gracefully.
+- **Pragmatic Use of Operator Unsupported Fields:** Deploying production Keycloak with operator "unsupported fields" for advanced features enabled necessary functionality despite uncertainty. While this creates questions about long-term support, it pragmatically unblocked production deployment. The alternative—waiting for features to stabilize in the operator API—would have delayed migration indefinitely.
 
-The multi-cluster architecture required careful configuration management thought. While identical configuration across clusters was the goal, reality demanded cluster-specific settings like cluster names, zone labels, and storage classes. The team learned to structure Git repositories with base configurations and cluster-specific overlays using Kustomize, balancing consistency with necessary customization. Future migrations can benefit from this repository structure pattern established during the Keycloak project.
+Several aspects proved more challenging than anticipated:
 
-For organizations considering similar migrations of critical services to Kubernetes, [CERN](https://home.cern)'s experience offers important guidance: prioritize comprehensive testing and observability before cutover, embrace GitOps for operational consistency and audit trails, use operators for stateful application management to reduce operational burden, and accept that pragmatic staged migrations reduce risk even if they delay full cloud-native transformation. The separation of concerns between stateless application logic and stateful storage proved architecturally sound and operationally beneficial.
+- **Realm Configuration Management Partially Unsolved:** While Keycloak operators now support realm imports via CRDs, many configuration elements still reside in the database rather than Git. The team's workaround—regularly exporting realm configuration to Git for change detection—provides visibility but lacks the declarative guarantees of full GitOps. **Lesson:** GitOps benefits apply unevenly; some stateful components resist full declarative management.
+
+- **Operator Preview Feature Uncertainty:** Features like token exchange have remained in "preview" status for years despite heavy production use by many organizations. The **[Keycloak](https://www.keycloak.org)** project should provide clearer roadmaps for feature stabilization. **Lesson:** Preview features may stay in preview indefinitely; assess organizational risk tolerance before depending on them.
+
+- **Infinispan Hybrid Approach Creates Operational Split:** Keeping Infinispan on VMs with **[Podman](https://podman.io)** and Puppet while migrating Keycloak to **[Kubernetes](https://kubernetes.io)** created operational complexity with two infrastructure paradigms. This pragmatic approach isolated migration risk but means the team still manages Puppet alongside GitOps. **Lesson:** Phased migrations create temporary hybrid complexity; plan for eventual consolidation.
+
+Recommendations for teams considering similar migrations:
+
+- **Separate Stateless from Stateful Components:** Design applications to be stateless with remote state storage (cache, database) from day one. This enables rapid restart, horizontal scaling, and operational simplicity. The 30-40 second Keycloak pod restart time proves the value.
+
+- **Invest in Load Testing for Organizational Buy-In:** Management skepticism about [cloud-native](https://glossary.cncf.io/cloud-native-tech/) architectures requires quantitative proof. Comprehensive performance testing showing concrete improvements (like 4x efficiency) secures resources and builds confidence.
+
+- **Adopt GitOps Early:** Managing infrastructure via Git with **[Argo CD](https://argoproj.github.io/cd/)** or **[Flux](https://fluxcd.io)** provides auditability and rollback capabilities from the start. Don't manage **[Kubernetes](https://kubernetes.io)** with kubectl imperatively—declare desired state in Git.
+
+- **Use Operators for Domain-Specific Applications:** The **[Kubernetes](https://kubernetes.io)** operator pattern encodes operational knowledge for complex applications like **[Keycloak](https://www.keycloak.org)**. Operators handle health checks, upgrades, and configuration management automatically. Accept pragmatic use of preview features when necessary.
+
+- **Phase High-Risk Migrations:** Migrating Keycloak to **[Kubernetes](https://kubernetes.io)** while keeping Infinispan on VMs isolated risk. Each component could be validated independently. Consider phased approaches for mission-critical services rather than big-bang migrations.
+
+- **Plan for Eventual Consistency in GitOps:** Some stateful components (like database-backed configuration) resist full declarative management. Accept partial GitOps coverage and build workarounds (like export scripts) for visibility.
 
 ---
 
 ## Conclusion
 
-[CERN](https://home.cern)'s successful migration of **[Keycloak](https://www.keycloak.org)** from VM-based infrastructure to multi-cluster **[Kubernetes](https://kubernetes.io)** demonstrates that critical identity services can be modernized using [cloud-native](https://glossary.cncf.io/cloud-native-tech/) patterns while improving reliability, operational efficiency, and organizational agility. The architecture combining Kubernetes multi-cluster deployment, [GitOps](https://glossary.cncf.io/gitops/) automation with **[Argo CD](https://argoproj.github.io/cd/)**, operator-based application management, and distributed caching with Infinispan provides a reference for organizations managing large-scale identity services.
+[CERN](https://home.cern)'s transformation from VM-based infrastructure to a [cloud-native](https://glossary.cncf.io/cloud-native-tech/) **[Kubernetes](https://kubernetes.io)** architecture represents a fundamental shift in operating mission-critical identity services. Over six months, the team migrated to multi-cluster **[Kubernetes](https://kubernetes.io)** with separated stateless Keycloak and stateful Infinispan, achieving 4x infrastructure efficiency and eliminating 15-minute failover windows. The architecture now supports 200,000 users and 10,000 logins per hour with 30-40 second pod restart times.
 
-The quantitative improvements validate the architectural approach: eliminating 15-minute manual failover windows with automatic sub-second failover, achieving four times better performance efficiency through load testing validation, and reducing operational maintenance time by approximately 70% through automation. The successful pathfinding for broader organizational transformation demonstrates how focused projects can build confidence and establish patterns for larger initiatives.
+As of February 2026, the architecture is fully operational and stable, serving particle physics researchers worldwide. The team continues optimizing: planning Infinispan migration to **[Kubernetes](https://kubernetes.io)**, expanding **[Prometheus](https://prometheus.io)** monitoring coverage, and refining GitOps workflows. Operational time spent on infrastructure decreased by approximately 70%, freeing the team to focus on identity management features rather than infrastructure maintenance.
 
-Key success factors included pragmatic risk mitigation through staged migration (keeping Infinispan on VMs initially), comprehensive testing before cutover to identify issues in controlled environments, investment in [observability](https://glossary.cncf.io/observability/) infrastructure providing objective validation of improvements, and organizational support for learning and iteration during implementation. The separation of cache infrastructure from Kubernetes demonstrated practical wisdom in managing migration risk while still achieving cloud-native benefits.
-
-Looking forward, [CERN](https://home.cern) plans to continue cloud-native transformation, migrating the remaining 900+ services using patterns validated by the Keycloak migration. This project's success built organizational confidence in Kubernetes and cloud-native technologies, accelerating the broader transformation timeline. Future enhancements may include migrating the Infinispan cache layer to Kubernetes for fully integrated infrastructure, exploring active-active multi-region deployment for even higher availability, and integrating additional authentication methods as research collaboration patterns evolve.
-
-For organizations considering similar migrations of critical services, [CERN](https://home.cern)'s experience offers essential lessons: comprehensive testing and observability enable confident migration, GitOps provides operational consistency that manual processes cannot match, operators simplify stateful application management dramatically, and pragmatic staged approaches often succeed where ambitious all-at-once transformations fail. The architecture demonstrates that cloud-native technologies deliver real operational benefits for critical infrastructure when implemented thoughtfully with appropriate risk mitigation.
+Looking forward, the team plans to complete the cloud-native migration by moving Infinispan to **[Kubernetes](https://kubernetes.io)**, eliminating the remaining Puppet-managed VM infrastructure. Additional **[Kubernetes](https://kubernetes.io)** clusters may be deployed for further availability zone coverage. The team is evaluating **[Istio](https://istio.io)** service mesh for advanced traffic management and exploring automated capacity planning based on **[Prometheus](https://prometheus.io)** metrics.
 
 ---
 
 ## About This Reference Architecture
 
 **Company:** [CERN](https://home.cern)  
-**Industry:** Scientific Research & Education  
+**Industry:** Scientific Research & High Energy Physics  
 **Publication Date:** 2026-02-10  
 **Generated by:** [casestudypilot](https://github.com/cncf/casestudypilot) reference-architecture-agent v1.0.0  
 **Source Video:** [https://www.youtube.com/watch?v=rqDrrTKzNd8](https://www.youtube.com/watch?v=rqDrrTKzNd8)  
 **TAB Status:** Proposed (pending submission)  
-**Architectural Significance:** Demonstrates large-scale SSO migration from VMs to Kubernetes with operator-based deployment, GitOps automation, and high-availability patterns for research infrastructure
+**Architectural Significance:** Demonstrates separation of stateless applications from caching layers in Kubernetes with GitOps automation for mission-critical identity management supporting 200,000 users
 
 ### CNCF TAB Submission
 
