@@ -2,19 +2,7 @@
 
 This tool takes an existing talk from CNCF Events like KubeCon + CloudNativeCon and generates content:
 
-- CNCF Case Study
-- CNCF Reference Architecture (WIP)
-- End User Amazingness Report (WIP) - Imagine a conglomeration of all your organization's talks to the CNCF Community in one report. Pure blog candy!
-
 TLDR: Ingests the youtube closed caption (which has timestamps!) and then generates a report based on community standards. It ingests the CNCF requirements for a case study and then uses all the existing case studies as examples. For bonus points it takes the image from the video when something interesting is mentioned in the video. Once we have the speaker's slides it should be even cooler.
-
----
-
-File an issue and paste in the youtube url and I'll generate it for you and publish here, or just clone this repo and have your LLM do it, it has skills and agents and whatnot. 
-
----
-
-## 📚 Generated Content
 
 ### Case Studies
 
