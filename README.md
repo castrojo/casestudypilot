@@ -1,27 +1,16 @@
 # CNCF Case Study Automation
 
-**Status:** 🚀 Screenshot Integration Complete  
-**Phase:** Implementation (Core Features + Screenshots)
+This tool takes an existing talk from CNCF Events like KubeCon + CloudNativeCon and generates content:
 
-Automate the creation of CNCF end-user case studies from YouTube video interviews using GitHub Copilot custom agents. Now includes automatic screenshot extraction and embedding for visual context.
+- CNCF Case Study
+- CNCF Reference Architecture (WIP)
+- End User Amazingness Report (WIP) - Imagine a conglomeration of all your organization's talks to the CNCF Community in one report. Pure blog candy!
+
+TLDR: Ingests the youtube closed caption (which has timestamps!) and then generates a report based on community standards. It ingests the CNCF requirements for a case study and then uses all the existing case studies as examples. For bonus points it takes the image from the video when something interesting is mentioned in the video. Once we have the speaker's slides it should be even cooler.
 
 ---
 
-## What This Will Do
-
-**Input:** GitHub issue with YouTube URL  
-**Output:** Pull request with publication-ready case study
-
-**Example:**
-```
-Issue: "Case Study Request: Intuit GitOps Journey"
-URL: https://www.youtube.com/watch?v=V6L-xOUdoRQ
-
-@case-study-agent please generate this case study
-
-→ Agent processes video
-→ Agent creates PR with case-studies/intuit.md
-```
+File an issue and paste in the youtube url and I'll generate it for you and publish here, or just clone this repo and have your LLM do it, it has skills and agents and whatnot. 
 
 ---
 
