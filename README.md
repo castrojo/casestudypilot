@@ -30,6 +30,19 @@ File an issue and paste in the youtube url and I'll generate it for you and publ
 
 ---
 
+## Integration
+
+**Powerlevel:** This project uses [powerlevel](https://github.com/castrojo/powerlevel) for project management and epic tracking. Plans in `docs/plans/` are automatically converted to GitHub epics with trackable sub-tasks.
+
+**Superpowers:** Development workflows leverage [superpowers](https://github.com/anomalyco/opencode) skills for planning (`writing-plans`), debugging (`systematic-debugging`), testing (`test-driven-development`), and verification (`verification-before-completion`).
+
+**Configuration:**
+- Powerlevel plugin: `.opencode/config.json`
+- Superpowers location: `~/.config/opencode/skills/superpowers/`
+- Project tracking: `~/.config/opencode/powerlevel/projects/casestudypilot/`
+
+---
+
 ## Fail-Fast Validation Architecture
 
 The agent includes comprehensive validation to prevent hallucination and ensure data quality:

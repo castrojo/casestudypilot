@@ -1,0 +1,5 @@
+{
+  "plugins": [
+    "~/.config/opencode/powerlevel/plugin.js"
+  ]
+}

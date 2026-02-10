@@ -6,6 +6,51 @@ This document provides operational guidance for **LLM agents** working with this
 
 **Primary Audience:** AI agents (GitHub Copilot, Claude, GPT-4, etc.)
 
+## Foundation: Superpowers Skills
+
+**IMPORTANT:** This framework builds on top of **superpowers**, a universal skill system for LLM-driven development. Before working with casestudypilot, familiarize yourself with these foundational skills:
+
+### Universal Development Skills (Superpowers)
+
+Located at: `~/.config/opencode/skills/superpowers/`
+
+**Planning & Design:**
+- `brainstorming`: Design exploration before implementation (REQUIRED for new features)
+- `writing-plans`: Structured planning for multi-step tasks
+- `executing-plans`: Plan execution with review checkpoints
+
+**Development Discipline:**
+- `test-driven-development`: Write tests before implementation
+- `systematic-debugging`: Root cause analysis for failures
+- `verification-before-completion`: Run checks before claiming work complete
+
+**Workflow Management:**
+- `using-git-worktrees`: Isolated development environments
+- `finishing-a-development-branch`: Merge decision workflows
+- `requesting-code-review`: Review request automation
+- `receiving-code-review`: Review feedback processing
+
+**Orchestration:**
+- `dispatching-parallel-agents`: Independent task parallelism
+- `subagent-driven-development`: Task delegation patterns
+
+**Meta Skills:**
+- `writing-skills`: Skill creation and editing
+- `using-superpowers`: How to access and invoke skills
+
+### When to Use Superpowers vs. CaseStudyPilot Skills
+
+| Situation | Use Superpowers | Use CaseStudyPilot Skills |
+|-----------|-----------------|---------------------------|
+| Planning new feature | ✅ `writing-plans` | After plan: domain agents |
+| Debugging validation failure | ✅ `systematic-debugging` | Understand validation logic |
+| Implementing new agent | ✅ `brainstorming`, `test-driven-development` | Reference existing agents |
+| Creating new skill | ✅ `writing-skills` | Follow `.github/skills/` patterns |
+| Generating case study | Domain workflow | ✅ `case-study-agent` |
+| Analyzing transcript | Domain task | ✅ `transcript-analysis` skill |
+
+**Integration Point:** CaseStudyPilot agents and skills follow superpowers patterns but are specialized for CNCF content generation.
+
 ## Framework Mental Model
 
 ### Three-Layer Architecture
