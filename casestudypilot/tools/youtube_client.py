@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from youtube_transcript_api import YouTubeTranscriptApi
 from casestudypilot.validation import validate_transcript
+import yt_dlp
 
 logger = logging.getLogger(__name__)
 
@@ -60,16 +61,47 @@ def format_duration(seconds: float) -> str:
         return f"{minutes}:{secs:02d}"
 
 
-def extract_basic_metadata(url: str, video_id: str) -> Dict[str, Any]:
-    """Extract basic metadata from URL."""
-    return {
-        "video_id": video_id,
-        "url": url,
-        "title": f"Video {video_id}",  # Placeholder
-        "description": "Placeholder description",
-        "duration_seconds": 0,
-        "channel_name": "CNCF [Cloud Native Computing Foundation]",
-    }
+def fetch_youtube_metadata(video_id: str, url: str) -> Dict[str, Any]:
+    """Fetch real metadata from YouTube using yt-dlp.
+
+    Args:
+        video_id: YouTube video ID
+        url: Full YouTube URL
+
+    Returns:
+        Metadata dict with title, description, channel, duration
+    """
+    try:
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+            return {
+                "video_id": video_id,
+                "url": url,
+                "title": info.get("title", f"Video {video_id}"),
+                "description": info.get("description", "No description available"),
+                "duration_seconds": info.get("duration", 0),
+                "channel_name": info.get(
+                    "channel", "CNCF [Cloud Native Computing Foundation]"
+                ),
+            }
+    except Exception as e:
+        logger.warning(f"Could not fetch YouTube metadata for {video_id}: {e}")
+        # Return basic metadata as fallback
+        return {
+            "video_id": video_id,
+            "url": url,
+            "title": f"Video {video_id}",
+            "description": "Placeholder description",
+            "duration_seconds": 0,
+            "channel_name": "CNCF [Cloud Native Computing Foundation]",
+        }
 
 
 def fetch_video_data(url: str, duration_hint: Optional[int] = None) -> Dict[str, Any]:
@@ -83,7 +115,11 @@ def fetch_video_data(url: str, duration_hint: Optional[int] = None) -> Dict[str,
         Video metadata dict with transcript and validation results
     """
     video_id = extract_video_id(url)
-    metadata = extract_basic_metadata(url, video_id)
+
+    # Fetch real metadata from YouTube
+    metadata = fetch_youtube_metadata(video_id, url)
+
+    # Fetch transcript
     transcript_segments = fetch_transcript(video_id)
 
     # Calculate duration from last transcript segment, or use hint

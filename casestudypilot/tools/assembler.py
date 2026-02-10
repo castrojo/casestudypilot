@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from casestudypilot.utils import slugify
 
 
 def load_json_file(file_path: Path) -> Dict[str, Any]:
@@ -75,8 +76,10 @@ def assemble_case_study(
 
     # Determine output path
     if output_path is None:
-        company_slug = context["company"].lower().replace(" ", "-").replace(",", "")
-        output_path = Path("case-studies") / f"{company_slug}.md"
+        # Use slugified video title as filename
+        video_title = video_data.get("title", "unknown-video")
+        title_slug = slugify(video_title)
+        output_path = Path("case-studies") / f"{title_slug}.md"
 
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -96,17 +99,20 @@ def assemble_case_study(
             if "name" not in proj:
                 # Log warning for malformed data but continue gracefully
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(f"CNCF project dict missing 'name' field: {proj}")
                 # Use first available value as fallback
-                name = next((v for k, v in proj.items() if isinstance(v, str)), "Unknown")
+                name = next(
+                    (v for k, v in proj.items() if isinstance(v, str)), "Unknown"
+                )
                 project_names.append(name)
             else:
                 project_names.append(proj["name"])
         else:
             # String format: use directly
             project_names.append(str(proj))
-    
+
     return {
         "output_path": str(output_path),
         "company_name": context["company"],
