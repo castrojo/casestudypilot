@@ -1,203 +1,103 @@
-# Case Study Generation - Agent Workflow Guide
+# Skill-Driven Agent Development Guide
 
 ## Overview
 
-This document codifies the workflow for generating CNCF case studies from YouTube videos. The primary workflow is defined in `.github/agents/case-study-agent.md` and agent skills in `.github/skills/`, but this document captures general best practices and operational guidelines.
+This document provides operational guidance for **LLM agents** working with this skill-driven automation framework. The framework implements a three-layer architecture where agents orchestrate workflows by combining CLI tools (Python) with LLM skills.
 
-## Primary Documentation
+**Primary Audience:** AI agents (GitHub Copilot, Claude, GPT-4, etc.)
 
-**ALWAYS refer to these as the source of truth:**
-- **Agent Workflow:** `.github/agents/case-study-agent.md` (version 2.2.0+)
-- **Agent Skills:** `.github/skills/*/SKILL.md`
-  - `transcript-analysis` - Extract CNCF projects, metrics, sections
-  - `case-study-generation` - Generate polished markdown content
-  - `transcript-correction` - Clean up transcript text
+## Framework Mental Model
 
-**This document supplements but does NOT replace the agent workflow and skills.**
+### Three-Layer Architecture
 
----
-
-## Core Principles
-
-### 1. Fail-Fast Validation
-
-The framework implements 5 validation checkpoints to prevent hallucination:
-
-| Step | Checkpoint | Command | Critical Failure Behavior |
-|------|-----------|---------|---------------------------|
-| 2 | Transcript Quality | `validate-transcript` | Stop, label issue, close |
-| 3 | Company Identification | `validate-company` | Stop, label issue, close |
-| 6 | Analysis Output | `validate-analysis` | Stop, label issue, close |
-| 8.5 | Metric Fabrication | `validate-metrics` | Continue (WARNING only) |
-| 8.5 | Company Consistency | `validate-consistency` | Stop if wrong company |
-| 10 | Final Quality | `validate` | Stop if score < 0.60 |
-
-**Exit Codes:**
-- `0` = PASS (continue)
-- `1` = WARNING (log and continue)
-- `2` = CRITICAL (stop workflow immediately)
-
-### 2. Always Use Real Metadata
-
-```bash
-# ✅ CORRECT - Fetches real YouTube title
-python -m casestudypilot youtube-data "https://www.youtube.com/watch?v=VIDEO_ID"
-
-# ❌ WRONG - Never use placeholder titles
-title = "Video VIDEO_ID"
+```
+┌──────────────────────────────────────────────────────────────┐
+│ LAYER 1: AGENTS (You are here)                              │
+│ - Orchestrate workflows                                      │
+│ - Make decisions based on exit codes                         │
+│ - Invoke skills and CLI tools                                │
+│ - Handle errors and communicate with users                   │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ├─────────────────┐
+                            ↓                 ↓
+┌────────────────────────────────┐  ┌───────────────────────────┐
+│ LAYER 2: SKILLS                │  │ LAYER 3: CLI TOOLS        │
+│ - LLM-powered tasks            │  │ - Python validation       │
+│ - Content generation           │  │ - Data fetching           │
+│ - Analysis and extraction      │  │ - File assembly           │
+│ - Structured input/output      │  │ - Quality scoring         │
+└────────────────────────────────┘  └───────────────────────────┘
 ```
 
-The youtube_client uses `yt-dlp` to fetch real video metadata including title, description, duration, and channel.
+### Your Role as an Agent
 
-### 3. Slugified Filenames
+You are the **orchestrator**. Your job is to:
 
-Case study filenames MUST match the YouTube video title (slugified):
+1. **Read agent workflow files** (`.github/agents/*.md`) to understand the complete workflow
+2. **Invoke CLI tools** for validation and data operations (check exit codes!)
+3. **Invoke LLM skills** for content generation and analysis (prepare structured inputs)
+4. **Make decisions** based on validation results (continue, warn, or stop)
+5. **Communicate** with users (post errors, create PRs, thank contributors)
 
-```python
-# From utils.slugify()
-title = "Supercharge Your Canary Deployments - Alex & Zach"
-filename = "supercharge-your-canary-deployments.md"
-```
+## Core Operating Principles
 
-**Rules:**
-- Lowercase
-- Hyphens as separators
-- Remove special characters
-- Strip speaker names (after " - ")
-- Maximum readability
+### 1. Always Check Exit Codes
 
-### 4. Always Include Screenshots
+Every CLI validation command returns an exit code:
 
-Screenshots provide visual context and improve case study quality:
+| Code | Meaning | Action |
+|------|---------|--------|
+| 0 | PASS | Continue to next step |
+| 1 | WARNING | Log warning, continue workflow |
+| 2 | CRITICAL | Post error to issue, stop immediately |
 
-```bash
-python -m casestudypilot extract-screenshots \
-  video_data.json \
-  transcript_analysis.json \
-  case_study_sections.json \
-  --download-dir case-studies/images/<slugified-title>/ \
-  --output screenshots.json
-```
-
-**Screenshot sections:**
-- `challenge.jpg` - Problem visualization
-- `solution.jpg` - Architecture/implementation
-- `impact.jpg` - Results and metrics
-
-**Pass to assembler:**
-```bash
-python -m casestudypilot assemble \
-  video_data.json \
-  transcript_analysis.json \
-  case_study_sections.json \
-  company_verification.json \
-  --screenshots screenshots.json
-```
-
-### 5. Hyperlinks Are Mandatory
-
-The template automatically adds hyperlinks for:
-
-**Company names:**
-- `[Intuit](https://www.intuit.com)` (from `hyperlinks.COMPANY_URLS`)
-
-**CNCF projects:**
-- `**[Kubernetes](https://kubernetes.io)**`
-- `**[Argo CD](https://argoproj.github.io/cd/)**`
-
-**Glossary terms:**
-- `[GitOps](https://glossary.cncf.io/gitops/)`
-- `[cloud-native](https://glossary.cncf.io/cloud-native-tech/)`
-
-**To add new mappings:**
-Edit `casestudypilot/hyperlinks.py`:
-```python
-COMPANY_URLS = {
-    "NewCompany": "https://www.newcompany.com",
-}
-
-PROJECT_URLS = {
-    "NewProject": "https://newproject.io",
-}
-
-GLOSSARY_TERMS = {
-    "new term": "https://glossary.cncf.io/new-term/",
-}
-```
-
----
-
-## Complete Workflow (Local Execution)
-
-This is a reference implementation. **Always consult `.github/agents/case-study-agent.md` for the authoritative workflow.**
-
-### Step 1: Fetch Video Data
-
-```bash
-python -m casestudypilot youtube-data "https://www.youtube.com/watch?v=VIDEO_ID"
-# Creates: video_data.json
-```
-
-**Validation:**
+**Pattern:**
 ```bash
 python -m casestudypilot validate-transcript video_data.json
-# Exit 0 = continue, Exit 2 = STOP
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 2 ]; then
+  # CRITICAL failure - post error template and STOP
+  echo "❌ Validation Failed: Transcript Quality"
+  exit 2
+elif [ $EXIT_CODE -eq 1 ]; then
+  # WARNING - log and continue
+  echo "⚠️ Warning: Transcript quality below optimal"
+fi
+# Exit code 0: continue silently
 ```
 
-### Step 2: Extract Company Name
+**Never proceed after exit code 2.** This is the framework's primary hallucination prevention mechanism.
 
-From issue body or video title:
-```bash
-COMPANY_NAME="Intuit"  # From issue or video metadata
-```
+### 2. Skills Have Structured Inputs/Outputs
 
-**Validation:**
-```bash
-python -m casestudypilot validate-company "$COMPANY_NAME" "$VIDEO_TITLE" --confidence 1.0
-# Exit 0 = continue, Exit 2 = STOP
-```
+When invoking an LLM skill:
 
-### Step 3: Verify CNCF Membership
+1. **Read the skill file** (`.github/skills/<skill-name>/SKILL.md`)
+2. **Prepare the input** in the exact JSON/text format specified
+3. **Execute the skill instructions** step-by-step
+4. **Produce the output** in the exact JSON/text format specified
+5. **Validate the output** (if validation command exists)
 
-```bash
-python -m casestudypilot verify-company "$COMPANY_NAME"
-# Creates: company_verification.json
-```
+**Example: transcript-analysis skill**
 
-If API fails, manually create:
+Input format (from skill file):
 ```json
 {
-  "query_name": "CompanyName",
-  "matched_name": "CompanyName",
-  "is_member": true,
-  "confidence": 1.0,
-  "landscape_url": "https://landscape.cncf.io",
-  "category": "CNCF End User",
-  "member_level": "End User Member"
+  "transcript": "text from video_data.json",
+  "video_title": "from video_data.json",
+  "duration": 1234
 }
 ```
 
-### Step 4: Analyze Transcript
-
-**Manual analysis following `.github/skills/transcript-analysis/SKILL.md`:**
-
-Create `transcript_analysis.json`:
+Output format (from skill file):
 ```json
 {
   "cncf_projects": [
-    {
-      "name": "Kubernetes",
-      "usage_context": "container orchestration"
-    }
+    {"name": "Kubernetes", "usage_context": "container orchestration"}
   ],
-  "key_metrics": [
-    {
-      "value": "50%",
-      "type": "percentage",
-      "context": "deployment time reduction",
-      "full_statement": "50% reduction in deployment time"
-    }
-  ],
+  "key_metrics": [...],
   "sections": {
     "background": "...",
     "challenge": "...",
@@ -207,283 +107,846 @@ Create `transcript_analysis.json`:
 }
 ```
 
-**Validation:**
+Then validate:
 ```bash
 python -m casestudypilot validate-analysis transcript_analysis.json
-# Exit 0 = continue, Exit 2 = STOP
+# Check exit code!
 ```
 
-### Step 5: Generate Case Study Sections
+### 3. Fail-Fast Validation Architecture
 
-**Manual generation following `.github/skills/case-study-generation/SKILL.md`:**
+The framework includes **validation checkpoints** at critical decision points. The case study agent has 5 checkpoints:
 
-Create `case_study_sections.json`:
+| Step | Checkpoint | CLI Command | Stop on Code 2? |
+|------|-----------|-------------|-----------------|
+| 2 | Transcript Quality | `validate-transcript` | YES |
+| 3 | Company Identification | `validate-company` | YES |
+| 6 | Analysis Output | `validate-analysis` | YES |
+| 8.5a | Metric Fabrication | `validate-metrics` | NO (warn only) |
+| 8.5b | Company Consistency | `validate-consistency` | YES |
+| 10 | Final Quality | `validate` | YES (score < 0.60) |
+
+**Why fail-fast?**
+- Prevents wasting compute on bad inputs
+- Catches hallucination early (empty transcript, wrong company)
+- Saves you from generating invalid content
+
+### 4. CLI for Data, Skills for Content
+
+**Use CLI tools when:**
+- ✅ Fetching data (YouTube transcripts, CNCF API)
+- ✅ Validating data (transcript quality, company names)
+- ✅ Assembling files (Jinja2 templates)
+- ✅ Scoring quality (multi-factor metrics)
+- ✅ Any deterministic operation
+
+**Use LLM skills when:**
+- ✅ Analyzing content (extracting CNCF projects)
+- ✅ Generating text (writing case study sections)
+- ✅ Correcting errors (fixing transcript mistakes)
+- ✅ Any creative/interpretive task
+
+**Why this separation?**
+- CLI tools are testable and deterministic
+- LLM skills leverage your strengths (understanding, generation)
+- Validation in Python prevents hallucination
+
+### 5. GitHub Communication: Use MCP or gh CLI
+
+**CRITICAL:** Always use GitHub MCP tools or `gh` CLI for GitHub operations. Never use `curl`, web scraping, or manual API calls.
+
+**Available GitHub Integration Methods:**
+
+1. **GitHub MCP (Model Context Protocol)** - Preferred when available
+2. **gh CLI** - Universal fallback for all GitHub operations
+
+**Why this matters:**
+- ✅ Efficient: Direct API access with authentication
+- ✅ Reliable: Official GitHub tooling with error handling
+- ✅ Maintainable: Consistent interface across workflows
+- ✅ Secure: Built-in authentication and token management
+- ❌ Never use `curl` or HTTP requests manually
+- ❌ Never scrape GitHub web pages for data
+
+#### GitHub MCP Tools (Preferred)
+
+If GitHub MCP is available in your environment, use these tools:
+
+| Operation | MCP Tool | Example |
+|-----------|----------|---------|
+| Create Issue | `create_issue` | `create_issue(owner, repo, title, body)` |
+| Update Issue | `update_issue` | `update_issue(owner, repo, issue_number, state, body)` |
+| Add Comment | `create_issue_comment` | `create_issue_comment(owner, repo, issue_number, body)` |
+| Create PR | `create_pull_request` | `create_pull_request(owner, repo, title, body, head, base)` |
+| Get Issue | `get_issue` | `get_issue(owner, repo, issue_number)` |
+| List PRs | `list_pull_requests` | `list_pull_requests(owner, repo, state)` |
+| Search | `search_code` | `search_code(query, repo)` |
+
+**Example: Post validation error to issue**
+```python
+# Use GitHub MCP to post error
+create_issue_comment(
+    owner="cncf",
+    repo="casestudypilot",
+    issue_number=42,
+    body="""❌ **Validation Failed: Transcript Quality**
+
+The transcript is too short or empty.
+
+**Action Required:** Please verify the YouTube video has captions enabled."""
+)
+```
+
+#### gh CLI (Universal Fallback)
+
+When GitHub MCP is not available, use `gh` CLI for all GitHub operations:
+
+| Operation | gh Command | Example |
+|-----------|------------|---------|
+| Create Issue | `gh issue create` | `gh issue create --title "..." --body "..."` |
+| Update Issue | `gh issue edit` | `gh issue edit 42 --add-label "validated"` |
+| Add Comment | `gh issue comment` | `gh issue comment 42 --body "..."` |
+| Create PR | `gh pr create` | `gh pr create --title "..." --body "..." --base main` |
+| Get Issue | `gh issue view` | `gh issue view 42 --json title,body,labels` |
+| List PRs | `gh pr list` | `gh pr list --state open --json number,title` |
+| Search | `gh api` | `gh api repos/:owner/:repo/search/code -q "..."` |
+
+**Example: Post validation error using gh CLI**
+```bash
+# Use gh CLI to post error
+gh issue comment 42 --body "❌ **Validation Failed: Transcript Quality**
+
+The transcript is too short or empty.
+
+**Action Required:** Please verify the YouTube video has captions enabled."
+```
+
+#### GitHub Communication Patterns
+
+**Pattern 1: Post error to issue (validation failure)**
+```bash
+# When validation returns exit code 2
+if [ $EXIT_CODE -eq 2 ]; then
+  # Use gh CLI to post error template
+  gh issue comment "$ISSUE_NUMBER" --body "$(cat error_template.md)"
+  exit 2
+fi
+```
+
+**Pattern 2: Create PR with results**
+```bash
+# After successful workflow completion
+gh pr create \
+  --title "Add case study for $COMPANY" \
+  --body "$(cat pr_description.md)" \
+  --base main \
+  --head "$BRANCH_NAME"
+```
+
+**Pattern 3: Fetch issue data for workflow input**
+```bash
+# Extract video URL from issue body
+ISSUE_DATA=$(gh issue view "$ISSUE_NUMBER" --json body --jq '.body')
+VIDEO_URL=$(echo "$ISSUE_DATA" | grep -oP 'https://www\.youtube\.com/watch\?v=[^[:space:]]+' | head -1)
+```
+
+**Pattern 4: Update issue labels based on workflow state**
+```bash
+# Add label when workflow starts
+gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
+
+# Update label when validation passes
+gh issue edit "$ISSUE_NUMBER" --remove-label "in-progress" --add-label "validated"
+
+# Add label when PR is created
+gh issue edit "$ISSUE_NUMBER" --add-label "pr-created"
+```
+
+**Pattern 5: Link PR to issue**
+```bash
+# Reference issue in PR body
+gh pr create \
+  --title "Add case study for $COMPANY" \
+  --body "Closes #$ISSUE_NUMBER
+
+## Summary
+- Generated case study from video analysis
+- Extracted 3 screenshots
+- Validated all quality checkpoints" \
+  --base main
+```
+
+#### Common Pitfalls (DON'T DO THIS)
+
+**❌ Using curl for GitHub API**
+```bash
+# BAD - manual API calls
+curl -X POST \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  https://api.github.com/repos/owner/repo/issues/42/comments \
+  -d '{"body": "..."}'
+```
+
+**FIX:** Use `gh issue comment 42 --body "..."`
+
+**❌ Scraping GitHub web pages**
+```bash
+# BAD - parsing HTML
+wget https://github.com/owner/repo/issues/42
+grep '<title>' index.html
+```
+
+**FIX:** Use `gh issue view 42 --json title`
+
+**❌ Manual token management**
+```bash
+# BAD - hardcoded tokens
+GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
+```
+
+**FIX:** Use `gh auth login` or GitHub MCP authentication
+
+**❌ Ignoring gh CLI JSON output**
+```bash
+# BAD - parsing human-readable output
+gh issue view 42 | grep "title:"
+```
+
+**FIX:** Use `gh issue view 42 --json title --jq '.title'`
+
+#### Environment Setup
+
+**Check if GitHub MCP is available:**
+```python
+# In Python CLI tools
+try:
+    import github_mcp
+    USE_MCP = True
+except ImportError:
+    USE_MCP = False
+```
+
+**Check if gh CLI is available:**
+```bash
+if ! command -v gh &> /dev/null; then
+  echo "❌ Error: gh CLI not found"
+  exit 2
+fi
+
+# Verify authentication
+if ! gh auth status &> /dev/null; then
+  echo "❌ Error: gh CLI not authenticated"
+  exit 2
+fi
+```
+
+**Agent workflow requirement:**
+All agent workflows that interact with GitHub must include authentication checks in their pre-flight steps.
+
+## Operational Workflows
+
+### Current Implementation: Case Study Generation
+
+**Agent:** `case-study-agent` (v2.2.0)  
+**Workflow:** 14 steps with 5 validation checkpoints  
+**Location:** `.github/agents/case-study-agent.md`
+
+**Summary:**
+1. Pre-flight checks (environment ready?)
+2. Fetch video data → Validate transcript quality
+3. Extract company name → Validate company
+4. Verify CNCF membership
+5. **Skill:** Correct transcript (transcript-correction)
+6. **Skill:** Analyze transcript (transcript-analysis) → Validate analysis
+7. Extract 3 screenshots
+8. **Skill:** Generate case study (case-study-generation)
+9. Validate metrics (fabrication check) + company consistency
+10. Assemble markdown with screenshots
+11. Validate final quality
+12. Create branch
+13. Commit (atomic: 1 markdown + 3 images)
+14. Create PR and post to issue
+
+**This is your template for creating new agent workflows.**
+
+## Common Patterns and Best Practices
+
+### Pattern 1: Fetch-Validate-Process
+
+Most workflows follow this pattern:
+
+```
+1. Fetch data (CLI tool)
+2. Validate data (CLI tool with exit code)
+3. If valid, process data (skill or CLI)
+4. Validate output (CLI tool with exit code)
+5. If valid, continue
+```
+
+**Example:**
+```bash
+# 1. Fetch
+python -m casestudypilot youtube-data "$URL"
+
+# 2. Validate
+python -m casestudypilot validate-transcript video_data.json
+if [ $? -eq 2 ]; then exit 2; fi
+
+# 3. Process (skill invocation)
+# [Apply transcript-analysis skill]
+
+# 4. Validate
+python -m casestudypilot validate-analysis transcript_analysis.json
+if [ $? -eq 2 ]; then exit 2; fi
+
+# 5. Continue...
+```
+
+### Pattern 2: Structured JSON for Skills
+
+All skill inputs and outputs use JSON:
+
 ```json
 {
-  "overview": "Markdown content with **bold CNCF projects**...",
-  "challenge": "Markdown content with **bold metrics**...",
-  "solution": "Markdown content...",
-  "impact": "Markdown content...",
-  "conclusion": "Markdown content..."
+  "input_field_1": "value",
+  "input_field_2": ["list", "of", "items"],
+  "input_field_3": {"nested": "object"}
 }
 ```
 
-**Validation:**
-```bash
-# Validate metrics
-python -m casestudypilot validate-metrics \
-  case_study_sections.json \
-  video_data.json \
-  transcript_analysis.json
-# Exit 0/1 = continue
+**Why JSON?**
+- Unambiguous format
+- Easy to validate
+- Self-documenting
+- No parsing errors
 
-# Validate company consistency
-python -m casestudypilot validate-consistency \
-  case_study_sections.json \
-  video_data.json \
-  company_verification.json
-# Exit 0/1 = continue, Exit 2 = STOP (wrong company!)
+### Pattern 3: Error Templates for Users
+
+When validation fails (exit code 2), post a helpful error to the GitHub issue:
+
+```markdown
+❌ **Validation Failed: [Checkpoint Name]**
+
+[What went wrong]
+
+**Critical Issues:**
+- [Issue 1]
+- [Issue 2]
+
+**Possible Causes:**
+- [Cause 1]
+- [Cause 2]
+
+**Action Required:**
+[What user should do]
 ```
 
-### Step 6: Extract Screenshots
+Templates are in agent workflow files. Use them verbatim.
+
+### Pattern 4: Atomic Commits
+
+When committing files, always commit all related files in a single atomic commit:
 
 ```bash
-python -m casestudypilot extract-screenshots \
-  video_data.json \
-  transcript_analysis.json \
-  case_study_sections.json \
-  --download-dir case-studies/images/<slugified-title>/ \
-  --output screenshots.json
-# Creates: screenshots.json + 3 JPG files
+# Case study workflow: 1 markdown + 3 images
+git add case-studies/company.md
+git add case-studies/images/company/*.jpg
+git commit -m "Add case study for Company with screenshots"
 ```
 
-### Step 7: Assemble Final Case Study
+**Why atomic?**
+- Ensures markdown and images are always in sync
+- Easy to revert if needed
+- Clean git history
+
+## Common Pitfalls (DON'T DO THIS)
+
+### ❌ Ignoring Exit Codes
 
 ```bash
-python -m casestudypilot assemble \
-  video_data.json \
-  transcript_analysis.json \
-  case_study_sections.json \
-  company_verification.json \
-  --screenshots screenshots.json
-# Creates: case-studies/<slugified-title>.md
+# BAD - no exit code check
+python -m casestudypilot validate-transcript video.json
+python -m casestudypilot validate-company "Company" "Title"
+# Continue regardless of validation results
 ```
 
-### Step 8: Validate Quality
+**Result:** Hallucination, bad data propagates through workflow
+
+**FIX:** Always check exit codes and stop on code 2
+
+### ❌ Skipping Validation Checkpoints
 
 ```bash
-python -m casestudypilot validate "case-studies/<slugified-title>.md"
-# Exit 0 = PASS (score >= 0.60), Exit 2 = STOP
+# BAD - skip validation for speed
+python -m casestudypilot youtube-data "$URL"
+# [Apply skills immediately without validation]
 ```
 
+**Result:** Generate content from empty/bad transcript
+
+**FIX:** Validate at every checkpoint
+
+### ❌ Using Placeholder Data
+
+```json
+{
+  "title": "Video VIDEO_ID",
+  "company": "Company",
+  "projects": ["CNCF Project"]
+}
+```
+
+**Result:** Generic, useless output
+
+**FIX:** Always use real data from CLI tools (youtube-data uses yt-dlp for real metadata)
+
+### ❌ Fabricating Metrics
+
+```markdown
+The company achieved **300% improvement** in performance.
+```
+
+**Result:** False claims not supported by transcript
+
+**FIX:** Only use metrics from transcript, validate with `validate-metrics`
+
+### ❌ Wrong Company Hallucination (Spotify Bug)
+
+```json
+{
+  "company_verification": {"matched_name": "Intuit"},
+  "case_study_content": "Spotify uses Kubernetes..." // WRONG COMPANY!
+}
+```
+
+**Result:** Case study about wrong company
+
+**FIX:** Use `validate-consistency` to catch this (exit code 2 stops workflow)
+
+### ❌ Separate Commits for Related Files
+
+```bash
+# BAD - separate commits
+git add case-studies/company.md
+git commit -m "Add case study"
+
+git add case-studies/images/company/*.jpg
+git commit -m "Add screenshots"
+```
+
+**Result:** Broken state between commits (markdown references non-existent images)
+
+**FIX:** Single atomic commit for all related files
+
+## Adding New Skills and Agents
+
+### Creating a New LLM Skill
+
+**When to create a skill:**
+- Task requires natural language understanding
+- Task is creative/generative (not deterministic)
+- Task can be reused across multiple agents
+- Task has clear input/output boundaries
+
+**Steps:**
+1. Create `.github/skills/<skill-name>/SKILL.md`
+2. Define the skill purpose (1-2 sentences)
+3. Specify input format (JSON structure with types)
+4. Specify output format (JSON structure with types)
+5. Write execution instructions (step-by-step for LLMs)
+6. Add 2-3 examples (input → output)
+7. Reference skill from agent workflow
+
+**Template:**
+```markdown
+# Skill: skill-name
+
+## Purpose
+[What this skill does in 1-2 sentences]
+
+## Input Format
+```json
+{
+  "field1": "type and description",
+  "field2": ["type and description"]
+}
+```
+
+## Output Format
+```json
+{
+  "result_field1": "type and description",
+  "result_field2": ["type and description"]
+}
+```
+
+## Execution Instructions
+
+1. [Step 1: What to do]
+2. [Step 2: What to do]
+3. [Step 3: What to do]
+
+## Examples
+
+### Example 1: [Description]
+
+**Input:**
+```json
+{...}
+```
+
+**Output:**
+```json
+{...}
+```
+
+## Quality Guidelines
+
+- [Guideline 1]
+- [Guideline 2]
+```
+
+### Creating a New Agent Workflow
+
+**When to create an agent:**
+- You have a complete end-to-end workflow
+- Workflow combines multiple CLI tools and skills
+- Workflow needs orchestration logic (decision trees)
+- Workflow is triggered by user action (GitHub issue, PR, etc.)
+
+**Steps:**
+1. Create `.github/agents/<agent-name>.md`
+2. Define agent metadata (name, version, description)
+3. List workflow steps (numbered, imperative)
+4. Specify CLI tool invocations
+5. Specify skill invocations
+6. Add validation checkpoints (with exit code handling)
+7. Create error templates
+8. Document environment requirements
+
+**Template:**
+```markdown
+---
+name: agent-name
+description: [What this agent does]
+version: 1.0.0
 ---
 
-## File Structure
+# Agent Name
 
-### Input Files
+## Mission
+[What this agent automates]
 
-```
-video_data.json              # From youtube-data command
-transcript_analysis.json     # Manual or AI-generated analysis
-case_study_sections.json     # Manual or AI-generated content
-company_verification.json    # From verify-company command
-screenshots.json             # From extract-screenshots command
-```
+## Workflow (N Steps)
 
-### Output Files
+### Step 1: [Action]
+[Description]
 
-```
-case-studies/
-  <slugified-title>.md                    # Final case study
-  images/<slugified-title>/
-    challenge.jpg                          # Challenge screenshot
-    solution.jpg                           # Solution screenshot
-    impact.jpg                             # Impact screenshot
+```bash
+# CLI command if applicable
 ```
 
----
+**Validation (if applicable):**
+```bash
+python -m casestudypilot validate-something data.json
+```
+
+**Check exit code:**
+- Exit 0: Continue
+- Exit 1: Log warning, continue
+- Exit 2: Post error, STOP
+
+**Error Template:**
+```markdown
+❌ **Error: [Description]**
+[Details]
+```
+
+### Step 2: Apply [Skill Name] Skill
+- Use skill: `skill-name`
+- Input: [Prepare from previous step]
+- Output: [Save to file]
+
+[Repeat for all steps]
+
+## Error Handling
+[List all error scenarios with templates]
 
 ## Quality Standards
-
-### Minimum Requirements (from validation.py)
-
-- **Transcript:** >= 1000 chars, >= 50 segments, >= 100 words
-- **Company Confidence:** >= 0.7 (WARNING at 0.5-0.7)
-- **CNCF Projects:** >= 1 (WARNING if only 1)
-- **Section Length:** >= 100 chars each
-- **Quality Score:** >= 0.60 (target 0.70+)
-
-### Style Requirements (from case-study-generation skill)
-
-- **Word Count:** 500-1500 total
-- **Tone:** Professional, technical, factual
-- **Voice:** Third-person narrative
-- **Tense:** Past for actions, present for current state
-- **Metrics:** Always bold (`**50% reduction**`)
-- **CNCF Projects:** Always bold and linked (`**[Kubernetes](https://kubernetes.io)**`)
-
----
-
-## Common Pitfalls
-
-### ❌ Don't Do This
-
-1. **Skip validation checkpoints**
-   ```bash
-   # BAD - no validation
-   python -m casestudypilot assemble ...
-   ```
-
-2. **Use placeholder titles**
-   ```json
-   {"title": "Video VIDEO_ID"}  // WRONG
-   ```
-
-3. **Forget screenshots**
-   ```bash
-   # BAD - no --screenshots flag
-   python -m casestudypilot assemble ... 
-   ```
-
-4. **Ignore exit codes**
-   ```bash
-   validate-transcript video.json
-   # Exit 2 but continue anyway - WRONG!
-   ```
-
-5. **Fabricate metrics**
-   ```markdown
-   **300% improvement** in performance  // Not in transcript!
-   ```
-
-### ✅ Do This
-
-1. **Always validate at checkpoints**
-   ```bash
-   validate-transcript && validate-company && validate-analysis
-   ```
-
-2. **Use real metadata**
-   ```bash
-   python -m casestudypilot youtube-data URL  # Fetches real title
-   ```
-
-3. **Include screenshots**
-   ```bash
-   extract-screenshots ... && assemble ... --screenshots screenshots.json
-   ```
-
-4. **Check exit codes**
-   ```bash
-   if ! validate-transcript video.json; then
-     echo "CRITICAL failure - stopping"
-     exit 2
-   fi
-   ```
-
-5. **Quote from transcript**
-   ```markdown
-   **100+ incidents prevented** per month  // Directly from speaker
-   ```
-
----
-
-## Troubleshooting
-
-### Screenshots Fail to Extract
-
-**Problem:** yt-dlp can't download frames
-
-**Solution:** Falls back to YouTube thumbnails automatically
-```bash
-# Check screenshots.json for extraction_method
-cat screenshots.json | jq '.screenshots[].extraction_method'
-# "frame_extraction" (good) or "thumbnail_fallback" (acceptable)
+[Define quality requirements]
 ```
 
-### Metrics Validation Warnings
+### Adding a New CLI Tool
 
-**Problem:** Metrics not found in transcript
+**When to create a CLI tool:**
+- Operation is deterministic (same input → same output)
+- Operation requires validation logic
+- Operation involves file I/O or API calls
+- Operation needs to be testable
 
-**Solution:** Only use metrics explicitly stated by speaker
-```bash
-validate-metrics ... --json | jq '.checks[] | select(.passed == false)'
-```
+**Steps:**
+1. Add Python module: `casestudypilot/tools/<tool_name>.py`
+2. Implement function with clear input/output
+3. Add CLI command in `casestudypilot/__main__.py`
+4. Return exit code: 0 (success), 1 (warning), 2 (critical)
+5. Write tests: `tests/test_<tool_name>.py`
+6. Update README CLI commands section
+7. Reference from agent workflows
 
-### Company Mismatch Detected
-
-**Problem:** Generated content about wrong company (Spotify bug pattern)
-
-**Solution:** CRITICAL failure - workflow stops automatically
-```bash
-# This should NEVER happen with validation
-validate-consistency ...
-# Exit 2 = wrong company detected
-```
-
-### Quality Score Too Low
-
-**Problem:** Score < 0.60
-
-**Solutions:**
-1. Add more CNCF projects (check transcript)
-2. Include more metrics (bold them: `**50%**`)
-3. Ensure all 4 sections have >= 100 chars
-4. Add glossary term hyperlinks
-
----
-
-## Maintenance
-
-### Adding New Companies
-
-Edit `casestudypilot/hyperlinks.py`:
+**Exit Code Convention:**
 ```python
-COMPANY_URLS = {
-    "NewCompany": "https://www.newcompany.com",
+import sys
+
+def main():
+    try:
+        result = do_work()
+        if result.is_critical_failure:
+            print("❌ Critical error", file=sys.stderr)
+            sys.exit(2)
+        elif result.has_warnings:
+            print("⚠️ Warning", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print("✅ Success")
+            sys.exit(0)
+    except Exception as e:
+        print(f"❌ {e}", file=sys.stderr)
+        sys.exit(2)
+```
+
+## Framework Extension Examples
+
+### Example 1: Blog Post Generation
+
+**New skill:** `blog-post-generation`
+
+```markdown
+# Skill: blog-post-generation
+
+## Purpose
+Generate technical blog posts from meeting transcripts or design documents.
+
+## Input Format
+```json
+{
+  "source_content": "raw text",
+  "target_audience": "developers|managers|general",
+  "tone": "casual|professional|technical",
+  "length": 500-2000 (words)
 }
 ```
 
-### Adding New CNCF Projects
+## Output Format
+```json
+{
+  "title": "Blog post title",
+  "subtitle": "Optional subtitle",
+  "content": "Markdown content with sections",
+  "tags": ["tag1", "tag2"],
+  "estimated_read_time": 8
+}
+```
+```
 
-Edit `casestudypilot/hyperlinks.py`:
-```python
-PROJECT_URLS = {
-    "NewProject": "https://newproject.io",
+**New CLI tool:** `validate-blog-post`
+
+```bash
+python -m casestudypilot validate-blog-post blog.json
+# Checks: length, structure, tone, formatting
+# Exit codes: 0=pass, 1=warn, 2=critical
+```
+
+**New agent:** `blog-post-agent`
+
+```markdown
+# Blog Post Agent
+
+## Workflow (8 Steps)
+
+1. Extract source content from issue
+2. Validate source quality → validate-source
+3. Apply blog-post-generation skill
+4. Validate blog post → validate-blog-post
+5. Assemble final markdown
+6. Create branch
+7. Commit blog post
+8. Create PR
+```
+
+### Example 2: Documentation Auditor
+
+**New skill:** `documentation-analysis`
+
+```markdown
+# Skill: documentation-analysis
+
+## Purpose
+Analyze documentation for completeness, clarity, and accuracy.
+
+## Input Format
+```json
+{
+  "docs_directory": "path/to/docs",
+  "file_list": ["file1.md", "file2.md"],
+  "check_types": ["links", "spelling", "structure"]
 }
 ```
 
-Update `.github/skills/transcript-analysis/SKILL.md` to include new project in common list.
-
-### Updating Validation Thresholds
-
-Edit `casestudypilot/validation.py`:
-```python
-MIN_TRANSCRIPT_LENGTH = 1000      # Increase if quality issues
-MIN_CONFIDENCE = 0.7              # Company identification threshold
-MIN_QUALITY_SCORE = 0.60          # Final quality gate
+## Output Format
+```json
+{
+  "issues": [
+    {
+      "file": "path/to/file.md",
+      "line": 42,
+      "type": "broken_link",
+      "severity": "critical",
+      "message": "Link to /api/v2 is broken"
+    }
+  ],
+  "summary": {
+    "total_issues": 15,
+    "critical": 3,
+    "warnings": 12
+  }
+}
+```
 ```
 
-Update tests in `tests/test_validation.py` to match new thresholds.
+**New CLI tool:** `check-doc-links`
 
+```bash
+python -m casestudypilot check-doc-links docs/
+# Validates all links in markdown files
+# Exit codes: 0=all valid, 1=some broken, 2=many broken
+```
+
+**New agent:** `documentation-auditor-agent`
+
+```markdown
+# Documentation Auditor Agent
+
+## Workflow (7 Steps)
+
+1. Scan repository for markdown files
+2. Apply documentation-analysis skill
+3. Check all links → check-doc-links
+4. Generate issue report
+5. Create branch with fixes (if possible)
+6. Commit fixes
+7. Create PR with audit results
+```
+
+## Maintenance and Updates
+
+### Keeping Documentation in Sync
+
+**Critical rule:** Documentation must always match reality.
+
+**When you make changes:**
+1. ✅ Update README.md if architecture changes
+2. ✅ Update AGENTS.md if patterns change
+3. ✅ Update agent workflows if steps change
+4. ✅ Update skills if input/output formats change
+5. ✅ Update CONTRIBUTING.md if extension process changes
+
+**Why?**
+- Future LLM agents will read these docs
+- Outdated docs cause confusion and errors
+- You are writing for your future self
+
+### Version Control
+
+**Agent workflows use semantic versioning:**
+- `1.0.0` - Initial release
+- `1.1.0` - Minor changes (new features, backward compatible)
+- `2.0.0` - Major changes (breaking changes to workflow)
+
+**Update version in agent file header:**
+```markdown
 ---
+name: case-study-agent
+version: 2.3.0  # Increment when workflow changes
+---
+```
+
+**Document changes in CHANGELOG.md** (create if doesn't exist)
+
+### Testing Your Changes
+
+**Before committing:**
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_validation.py -v
+
+# Check test coverage
+pytest tests/ --cov=casestudypilot --cov-report=html
+```
+
+**For CLI tools:**
+- Write unit tests in `tests/`
+- Test all exit codes (0, 1, 2)
+- Test edge cases (empty input, malformed JSON, etc.)
+
+**For skills:**
+- Manually test with real examples
+- Verify JSON output is valid
+- Check output meets quality guidelines
+
+**For agents:**
+- Test end-to-end workflow manually
+- Verify all validation checkpoints work
+- Test error paths (what happens on failures?)
+
+## Support and Resources
+
+### Documentation Hierarchy
+
+1. **README.md** - Framework architecture (read first)
+2. **AGENTS.md** - This file (operational guide)
+3. **CONTRIBUTING.md** - Extension procedures (read when adding components)
+4. **`.github/agents/*.md`** - Individual agent workflows
+5. **`.github/skills/*/SKILL.md`** - Individual skill definitions
+6. **`docs/`** - Technical details and design decisions
+
+### Key Concepts
+
+**Skill:** LLM-powered task with structured input/output (Layer 2)  
+**Agent:** Orchestrator combining skills and CLI tools (Layer 1)  
+**CLI Tool:** Python command for deterministic operations (Layer 3)  
+**Validation:** Checkpoint with exit codes to prevent hallucination  
+**Fail-Fast:** Stop immediately on critical errors (exit code 2)
+
+### Questions to Ask Yourself
+
+**Before adding a skill:**
+- Is this task creative/interpretive? (If no, use CLI tool)
+- Does it have clear input/output boundaries? (If no, refine)
+- Can it be reused across agents? (If no, might be too specific)
+
+**Before adding an agent:**
+- Do I have a complete end-to-end workflow? (If no, plan more)
+- Do I need multiple steps? (If no, might be single skill)
+- Do I need validation checkpoints? (Usually yes)
+
+**Before adding a CLI tool:**
+- Is this deterministic? (If no, use skill)
+- Can I write tests for it? (If no, rethink design)
+- Does it need validation logic? (If yes, return exit codes)
 
 ## Version History
 
-- **v2.2.0** - Added fail-fast validation framework (current)
-- **v2.0.0** - Original workflow (13 steps)
-- **v1.x** - Initial implementation
+- **v2.2.0** (February 2026) - Added fail-fast validation framework
+- **v2.0.0** (February 2026) - Initial production release with case study agent
+- **v1.x** (February 2026) - Development and planning phase
 
 ---
 
-## Support
+**Remember:** You are the orchestrator. Skills and CLI tools are your instruments. Validation is your safety net. Documentation is your memory.
 
-For issues or questions:
-1. Check `.github/agents/case-study-agent.md` (authoritative workflow)
-2. Review `.github/skills/*/SKILL.md` (detailed task guidance)
-3. Consult this document for best practices
-4. Report bugs at https://github.com/castrojo/casestudypilot/issues
-
----
-
-**Remember:** This document provides general guidance. **Always defer to the agent workflow and skills as the primary source of truth.**
+**Framework Status:** ✅ Production Ready - Ready for Skill Expansion  
+**Version:** 2.2.0  
+**Last Updated:** February 9, 2026

@@ -103,6 +103,52 @@ python -m casestudypilot validate-all video_data.json transcript_analysis.json c
 
 ---
 
+## 🐋 Container Usage (Zero Host Dependencies)
+
+**No Python installation required!** Run CaseStudyPilot entirely in containers using Podman or Docker.
+
+### Prerequisites
+- **Podman** (recommended) or **Docker**
+- **Just** command runner: https://github.com/casey/just#installation
+
+### Quick Start
+```bash
+# Build once
+just build
+
+# Generate case study
+just case-study 'https://www.youtube.com/watch?v=VIDEO_ID'
+
+# Develop with hot-reload
+just dev
+```
+
+### Available Commands
+- `just build` - Build the container image
+- `just case-study <url>` - Generate case study from YouTube URL
+- `just dev` - Open development shell with hot-reload
+- `just publish` - Publish to GitHub Container Registry
+
+See **[docs/CONTAINER-QUICK-START.md](docs/CONTAINER-QUICK-START.md)** for complete guide including:
+- Individual CLI command usage in containers
+- Publishing to GHCR
+- Troubleshooting
+- Full workflow examples
+
+### Pull from Registry
+```bash
+podman pull ghcr.io/castrojo/casestudypilot:latest
+```
+
+### Benefits
+- ✅ **Zero CVEs** - Using Chainguard Python (97.6% fewer vulnerabilities)
+- ✅ **Minimal size** - ~50-70MB production image
+- ✅ **No host dependencies** - Everything runs in container
+- ✅ **Hot-reload dev mode** - Edit code, see changes instantly
+- ✅ **Supply chain security** - Built-in SBOM and Sigstore signing
+
+---
+
 ## Components (To Be Built)
 
 ### 1. Python CLI Tool: `casestudypilot`

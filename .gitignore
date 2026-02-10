@@ -50,3 +50,7 @@ validation_results.json
 # Logs
 *.log
 screenshots.json
+
+# Container artifacts
+*.tar
+*.tar.gz

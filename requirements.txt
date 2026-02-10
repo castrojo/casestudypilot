@@ -7,6 +7,7 @@ jinja2>=3.1.6
 pydantic>=2.12.0
 typer>=0.18.0
 rich>=14.3.0
+mcp>=0.1.0
 
 # Frame Extraction
 yt-dlp>=2024.0.0
