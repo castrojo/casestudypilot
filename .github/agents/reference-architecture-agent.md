@@ -260,13 +260,16 @@ echo "✅ Deep analysis validation passed"
   "diagram_specifications": "<from diagram_specifications.json>",
   "company_info": {
     "name": "<from deep analysis>",
+    "url": "<company URL from company verification or manual lookup>",
     "industry": "<from deep analysis>",
     "verified_membership": "<from Step 4>"
   },
   "video_metadata": {
     "title": "<from video_data.json>",
     "url": "<VIDEO_URL>",
-    "duration_seconds": "<from video_data.json>"
+    "duration_seconds": "<from video_data.json>",
+    "duration_string": "<from video_data.json, format: HH:MM:SS or MM:SS>",
+    "speakers": "<extracted from title, format: 'Name1 & Name2'>"
   }
 }
 ```
