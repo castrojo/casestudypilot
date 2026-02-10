@@ -11,7 +11,7 @@ User creates issue with YouTube URL
     ↓
 GitHub Issue Form (case-study-request.yml)
     ↓
-Auto-applies "case-study" + "automation" labels
+Auto-applies "case-study" label
     ↓
 GitHub Actions Workflow (auto-assign-case-study.yml)
     ↓
@@ -37,7 +37,7 @@ Agent posts results to the issue
 - ✅ Optional additional context textarea
 - ✅ Validation checkboxes for requirements
 - ✅ Embedded instructions and examples
-- ✅ Auto-applies `case-study` and `automation` labels
+- ✅ Auto-applies `case-study` label
 
 **Fields:**
 
@@ -210,12 +210,6 @@ The case study is ready for your review at case-studies/intuit.md
 - **Color:** `#0E8A16` (green)
 - **Description:** Automated case study generation request
 - **Purpose:** Triggers the auto-assignment workflow
-- **Auto-applied:** Yes (by issue template)
-
-### automation
-- **Color:** `#1D76DB` (blue)
-- **Description:** Automated workflow processes
-- **Purpose:** Categorizes automated tasks
 - **Auto-applied:** Yes (by issue template)
 
 ---

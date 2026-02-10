@@ -1,7 +1,7 @@
 name: Generate a Reference Architecture
 description: Generate a comprehensive reference architecture (2000-5000 words, 13 sections) from a YouTube video
 title: ""
-labels: ["reference-architecture", "automation"]
+labels: ["reference-architecture"]
 assignees: []
 body:
   - type: markdown

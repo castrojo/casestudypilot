@@ -25,7 +25,7 @@ Create the GitHub issue template for organization requests:
 name: Organization Content Request
 description: Generate case studies or reference architectures for all of an organization's CNCF talks
 title: ""
-labels: ["automation", "epic", "organization"]
+labels: ["epic", "organization"]
 assignees: []
 body:
   - type: markdown
@@ -627,7 +627,7 @@ if [ -f videos_to_create.txt ]; then
     # Create issue body using heredoc
     gh issue create \
       --title "$VIDEO_TITLE" \
-      --label "automation,org/$ORG_LABEL,epic-$EPIC_NUMBER,$CONTENT_TYPE" \
+      --label "org/$ORG_LABEL,epic-$EPIC_NUMBER,$CONTENT_TYPE" \
       --body "$(cat <<EOF
 ## Auto-generated from Organization Epic
 
@@ -662,7 +662,7 @@ if [ -f videos_to_update.txt ]; then
   while read -r idx; do
     # Similar logic but add 'update' label
     gh issue create \
-      --label "automation,org/$ORG_LABEL,epic-$EPIC_NUMBER,$CONTENT_TYPE,update" \
+      --label "org/$ORG_LABEL,epic-$EPIC_NUMBER,$CONTENT_TYPE,update" \
       --body "...(content exists, may need refresh)..."
     sleep 2
   done < videos_to_update.txt
@@ -1020,7 +1020,6 @@ gh issue comment <issue-number> --body "@organization-search-agent"
 5. Sub-issues automatically trigger content agents
 
 **Required Labels:**
-- `automation`
 - `epic`
 - `organization`
 
@@ -1113,8 +1112,8 @@ This document shows an example of the organization batch generation workflow.
 
 ## Initial Issue
 
-**Title:** [Organization] Intuit  
-**Labels:** `automation`, `epic`, `organization`
+**Title:** Intuit  
+**Labels:** `epic`, `organization`
 
 **Body:**
 ```

@@ -408,7 +408,7 @@ All agent workflows that interact with GitHub must include authentication checks
 name: Generate a Case Study
 description: Generate a business-focused case study from a YouTube video
 title: ""  # Empty - no bracket prefix
-labels: ["case-study", "automation"]
+labels: ["case-study"]
 ```
 
 **Agent Discovery Pattern:**

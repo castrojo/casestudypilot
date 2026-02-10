@@ -2392,7 +2392,7 @@ Add comparison section showing when to generate case study vs. reference archite
 name: Reference Architecture Request
 description: Request generation of a CNCF reference architecture from a video
 title: ""
-labels: ["reference-architecture", "automation"]
+labels: ["reference-architecture"]
 body:
   - type: markdown
     attributes:
