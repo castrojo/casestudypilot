@@ -247,6 +247,18 @@ This skill transforms deep technical analysis and diagram specifications into a 
    The multi-cluster approach treats each Kubernetes cluster as cattle rather than pets. Clusters are replaceable and zone failures are handled gracefully without manual intervention. This design choice enables automatic failover and reduces operational burden."
    
    Why good: Multiple paragraphs, clear breaks, readable structure, proper linking
+
+7. Screenshot Management (CRITICAL):
+   - EACH screenshot MUST be used EXACTLY ONCE in the document
+   - Track used screenshots to prevent duplicates
+   - Screenshots are numbered 1-6 (screenshot-1.jpg through screenshot-6.jpg)
+   - Once a screenshot is embedded, mark it as USED
+   - NEVER reference the same screenshot number twice
+   - If you need to refer to a diagram again, use text reference: "As shown in the architecture diagram above..."
+   - Screenshot format: [![Description](images/slug/screenshot-N.jpg)](VIDEO_URL&t=XXXs)
+   - Each screenshot should appear in the most relevant section based on deep_analysis.screenshot_opportunities
+   - Distribute screenshots across 3-4 major sections (not all in one place)
+   - Example: screenshot-1 in Background, screenshot-2 in Architecture Overview, screenshot-3 in Implementation, etc.
 ```
 
 Follow these steps to generate the reference architecture:

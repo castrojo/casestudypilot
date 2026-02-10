@@ -411,6 +411,31 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "✅ Reference architecture assembled: $OUTPUT_FILE"
+
+# Validate screenshot uniqueness
+python -m casestudypilot validate-screenshots "$OUTPUT_FILE"
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 2 ]; then
+  echo "❌ Critical: Duplicate screenshots detected"
+  gh issue comment "$ISSUE_NUMBER" --body "❌ **Validation Failed: Screenshot Duplication**
+
+The generated reference architecture contains duplicate screenshots.
+
+**Details:**
+\`\`\`
+$(python -m casestudypilot validate-screenshots \"$OUTPUT_FILE\" 2>&1)
+\`\`\`
+
+**Action Required:**
+This is a bug in the reference-architecture-generation skill. Please report this issue with the video URL."
+  
+  exit 2
+elif [ $EXIT_CODE -eq 1 ]; then
+  echo "⚠️ Warning: Screenshot numbering issues detected"
+fi
+
+echo "✅ Screenshot validation passed"
 ```
 
 ---

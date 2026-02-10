@@ -114,17 +114,11 @@ Diagram 1: Component Architecture
 
 This component diagram shows how [CERN](https://home.cern) organized their multi-cluster **[Kubernetes](https://kubernetes.io)** deployment with separated application and caching layers. The diagram illustrates the three architectural layers: infrastructure (multiple clusters, load balancer, cache), platform (**[Argo CD](https://argoproj.github.io/cd/)**, operators, observability), and application (**[Keycloak](https://www.keycloak.org)** SSO). Key relationships include **[Argo CD](https://argoproj.github.io/cd/)** synchronizing from Git to multiple clusters, Keycloak pods connecting to remote Infinispan cache via DNS, and observability stack collecting metrics and logs.
 
-[![Component architecture diagram showing multi-cluster Kubernetes with separated Keycloak and Infinispan layers](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-2.jpg)](https://www.youtube.com/watch?v=rqDrrTKzNd8&t=960s)
-*Architecture overview showing the separated Keycloak and Infinispan design with GitOps automation (16:00)*
-
-The component diagram reveals the critical separation between stateless Keycloak and stateful Infinispan. This separation enables independent scaling and operational simplicity.
+As shown in the architecture diagram above (Architecture Overview section), the component diagram reveals the critical separation between stateless Keycloak and stateful Infinispan. This separation enables independent scaling and operational simplicity.
 
 Diagram 2: Authentication Data Flow
 
 This data flow diagram traces an authentication request from user browser through the floating IP load balancer to stateless Keycloak pods across availability zones. The diagram shows how Keycloak pods check the shared Infinispan cache for existing sessions and validate credentials against the CERN authorization service. The flow illustrates the stateless pod design—any pod can handle any request because session state lives in the shared cache.
-
-[![Data flow diagram showing authentication request path through load balancer to Keycloak pods with cache lookup](images/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski/screenshot-3.jpg)](https://www.youtube.com/watch?v=rqDrrTKzNd8&t=1140s)
-*Load testing results demonstrating 4x performance improvement with Kubernetes infrastructure (19:00)*
 
 Diagram 3: Multi-Cluster Deployment
 

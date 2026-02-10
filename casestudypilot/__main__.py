@@ -27,6 +27,7 @@ from casestudypilot.validation import (
 from casestudypilot.tools.validate_deep_analysis import main as validate_deep_analysis_main
 from casestudypilot.tools.validate_reference_architecture import main as validate_reference_architecture_main
 from casestudypilot.tools.assemble_reference_architecture import main as assemble_reference_architecture_main
+from casestudypilot.tools.validate_screenshots import validate_screenshots
 
 app = typer.Typer(name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False)
 console = Console()
@@ -623,6 +624,15 @@ def assemble_reference_architecture_cmd(
 ):
     """Assemble reference architecture markdown from JSON."""
     exit_code = assemble_reference_architecture_main(str(ref_arch_json), str(output))
+    sys.exit(exit_code)
+
+
+@app.command(name="validate-screenshots")
+def validate_screenshots_cmd(
+    markdown_file: Path = typer.Argument(..., help="Markdown file to validate"),
+):
+    """Validate screenshot uniqueness in generated markdown."""
+    exit_code = validate_screenshots(markdown_file)
     sys.exit(exit_code)
 
 
