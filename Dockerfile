@@ -33,9 +33,9 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir --no-deps -e .
 
 # =============================================================================
-# Stage 2: Runtime - Minimal production image
+# Stage 2: Runtime - Development image with shell tools
 # =============================================================================
-FROM cgr.dev/chainguard/python:latest AS runtime
+FROM cgr.dev/chainguard/python:latest-dev AS runtime
 
 WORKDIR /app
 
@@ -51,10 +51,10 @@ ENV PATH="/app/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Create output directories
+# Create output directories (as root, then switch back)
 USER root
-RUN mkdir -p /output/case-studies /output/data && \
-    chown -R nonroot:nonroot /output
+RUN mkdir -p /output/case-studies /output/data /output/reference-architectures && \
+    chmod -R 777 /output
 USER nonroot
 
 # OCI labels for GHCR metadata
