@@ -14,6 +14,26 @@ File an issue and paste in the youtube url and I'll generate it for you and publ
 
 ---
 
+## 📚 Generated Content
+
+### Case Studies
+
+<!-- GENERATED_CONTENT_START:case-studies -->
+- [Airbnb](case-studies/spark-on-kubernetes-a-practical-guide.md)
+- [Niantic](case-studies/niantic.md)
+- [Intuit](case-studies/supercharge-your-canary-deployments-with-argo-rollouts-step-plu-alexandre-gaudreault-zach-aller.md)
+- [Intuit](case-studies/intuit.md)
+<!-- GENERATED_CONTENT_END:case-studies -->
+
+### Reference Architectures
+
+<!-- GENERATED_CONTENT_START:reference-architectures -->
+- [Airbnb](reference-architectures/airbnb.md)
+- [CERN](reference-architectures/the-hard-life-of-securing-a-particle-accelerator-antonio-nappi-sebastian-lopienski-cern.md)
+<!-- GENERATED_CONTENT_END:reference-architectures -->
+
+---
+
 ## Architecture
 
 **Agent-Centric Design:**
