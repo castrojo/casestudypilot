@@ -4,6 +4,10 @@ This tool takes an existing talk from CNCF Events like KubeCon + CloudNativeCon 
 
 TLDR: Ingests the youtube closed caption (which has timestamps!) and then generates a report based on community standards. It ingests the CNCF requirements for a case study and then uses all the existing case studies as examples. For bonus points it takes the image from the video when something interesting is mentioned in the video. Once we have the speaker's slides it should be even cooler.
 
+---
+
+## 📚 Generated Content
+
 ### Case Studies
 
 <!-- GENERATED_CONTENT_START:case-studies -->
