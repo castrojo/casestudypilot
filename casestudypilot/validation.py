@@ -646,8 +646,6 @@ def validate_company_consistency(
 
     # Check for mentions of other major companies
     # Use word boundary matching to avoid false positives like "uber" in "kubernetes"
-    import re
-
     other_companies_mentioned = []
     for company in known_companies:
         if company.lower() == expected_company.lower():
