@@ -93,14 +93,14 @@ def analyze_transcript_for_visual_moments(
 
 
 def analyze_transcript_for_metric_moments(
-    transcript_segments: List[Dict[str, Any]], key_metrics: List[str]
+    transcript_segments: List[Dict[str, Any]], key_metrics: List
 ) -> List[Dict[str, Any]]:
     """
     Analyze transcript to find moments where key metrics are mentioned.
 
     Args:
         transcript_segments: List of transcript segments with text, start, duration
-        key_metrics: List of key metrics from analysis (e.g., ["50% reduction", "10,000 pods"])
+        key_metrics: List of key metrics from analysis (can be strings or dicts with full_statement)
 
     Returns:
         List of metric moments with timestamp, text, score, and matched metric
@@ -120,16 +120,21 @@ def analyze_transcript_for_metric_moments(
 
         # Check for exact or fuzzy key metric matches
         for metric in key_metrics:
-            metric_lower = metric.lower()
+            # Handle both dict and string formats
+            if isinstance(metric, dict):
+                metric_str = metric.get("full_statement", metric.get("value", ""))
+            else:
+                metric_str = str(metric)
+            metric_lower = metric_str.lower()
             # Fuzzy match with 80% threshold
             if fuzz.partial_ratio(metric_lower, text_lower) >= 80:
                 # Exact match bonus
                 if metric_lower in text_lower:
                     score += 5
-                    matched_metric = metric
+                    matched_metric = metric_str
                 else:
                     score += 3
-                    matched_metric = metric
+                    matched_metric = metric_str
                 break
 
         # Check for metric indicator patterns

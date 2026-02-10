@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from casestudypilot.utils import slugify
+from casestudypilot.hyperlinks import add_hyperlinks, COMPANY_URLS, PROJECT_URLS
 
 
 def load_json_file(file_path: Path) -> Dict[str, Any]:
@@ -17,7 +18,7 @@ def load_json_file(file_path: Path) -> Dict[str, Any]:
 
 
 def create_jinja_env() -> Environment:
-    """Create Jinja2 environment for template rendering."""
+    """Create Jinja2 environment for template rendering with custom filters."""
     template_dir = Path(__file__).parent.parent.parent / "templates"
     env = Environment(
         loader=FileSystemLoader(template_dir),
@@ -25,6 +26,22 @@ def create_jinja_env() -> Environment:
         trim_blocks=True,
         lstrip_blocks=True,
     )
+
+    # Add custom filter for hyperlinks
+    def add_links_filter(text: str, company: str = "") -> str:
+        """Jinja2 filter to add hyperlinks to text."""
+        return add_hyperlinks(text, company if company else None)
+
+    # Add custom filter for project URLs
+    def project_url_filter(project_name: str) -> str:
+        """Jinja2 filter to get project URL."""
+        return PROJECT_URLS.get(
+            project_name, f"https://{project_name.lower().replace(' ', '')}.io"
+        )
+
+    env.filters["add_links"] = add_links_filter
+    env.filters["project_url"] = project_url_filter
+
     return env
 
 
@@ -57,11 +74,20 @@ def assemble_case_study(
         # Convert list to dict keyed by section for easier template access
         screenshots = {s["section"]: s for s in screenshots_data.get("screenshots", [])}
 
+    # Get company name
+    company_name = verification.get(
+        "matched_name", verification.get("query_name", "Unknown")
+    )
+
+    # Get company URL from mapping or use placeholder
+    company_url = COMPANY_URLS.get(
+        company_name, f"https://www.{company_name.lower().replace(' ', '')}.com"
+    )
+
     # Merge context for template
     context = {
-        "company": verification.get(
-            "matched_name", verification.get("query_name", "Unknown")
-        ),
+        "company": company_name,
+        "company_url": company_url,
         "video": video_data,
         "analysis": analysis,
         "sections": sections,

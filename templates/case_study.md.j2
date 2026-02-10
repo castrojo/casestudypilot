@@ -1,4 +1,4 @@
-# {{ company }} Case Study
+# [{{ company }}]({{ company_url }}) Case Study
 
 > **Source:** [{{ video.title }}]({{ video.url }})  
 > **Duration:** {{ video.duration_formatted }}
@@ -7,13 +7,13 @@
 
 ## Overview
 
-{{ sections.overview }}
+{{ sections.overview | add_links(company) }}
 
 ---
 
 ## Challenge
 
-{{ sections.challenge }}
+{{ sections.challenge | add_links(company) }}
 
 {% if screenshots and screenshots.challenge %}
 
@@ -25,7 +25,7 @@
 
 ## Solution
 
-{{ sections.solution }}
+{{ sections.solution | add_links(company) }}
 
 {% if screenshots and screenshots.solution %}
 
@@ -37,7 +37,7 @@
 
 ## Impact
 
-{{ sections.impact }}
+{{ sections.impact | add_links(company) }}
 
 {% if screenshots and screenshots.impact %}
 
@@ -49,17 +49,17 @@
 
 ## Conclusion
 
-{{ sections.conclusion }}
+{{ sections.conclusion | add_links(company) }}
 
 ---
 
 ## Metadata
 
-**Company:** {{ company }}
+**Company:** [{{ company }}]({{ company_url }})
 
 **CNCF Projects Used:**
 {% for project in analysis.cncf_projects %}
-- **{{ project.name }}**: {{ project.usage_context }}
+- **[{{ project.name }}]({{ project.name | project_url }})**: {{ project.usage_context }}
 {% endfor %}
 
 **Key Metrics:**
