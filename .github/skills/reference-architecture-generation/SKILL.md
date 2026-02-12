@@ -1,7 +1,7 @@
 # Skill: reference-architecture-generation
 
 **Version:** 1.0.0  
-**Purpose:** Generate comprehensive 10-section reference architecture content from deep analysis and diagram specifications for CNCF TAB submission.
+**Purpose:** Generate a comprehensive, fact-based reference architecture from deep analysis, diagram specifications, and the corrected transcript. Only include information explicitly stated in the video — never extrapolate.
 
 ---
 
@@ -18,7 +18,7 @@ This skill transforms deep technical analysis and diagram specifications into a 
 | **Total length** | 500-1500 words | 2000-5000 words |
 | **Audience** | Business leaders, marketing | Engineers, architects |
 | **Tone** | Business-focused, benefits | Technical, instructional |
-| **CNCF Projects** | 2+ projects | 5+ projects |
+| **CNCF Projects** | 2+ projects | All projects explicitly named in transcript |
 | **Technical depth** | High-level | Implementation-level |
 | **Diagrams** | Optional | Required (with descriptions) |
 | **Integration patterns** | Mentioned | Detailed explanation |
@@ -128,7 +128,8 @@ This skill transforms deep technical analysis and diagram specifications into a 
     "duration_string": "20:34",
     "publication_date": "2026-01-15",
     "speakers": "John Doe & Jane Smith"
-  }
+  },
+  "corrected_transcript": "Full corrected transcript text — used for independent fact verification during generation. Every claim in the output must be traceable to this transcript."
 }
 ```
 
@@ -166,7 +167,8 @@ This skill transforms deep technical analysis and diagram specifications into a 
     "cncf_projects": "500-700 words: Detailed usage of each CNCF project...",
     "integration_patterns": "400-600 words: How projects integrate (e.g., Kubernetes + Istio)...",
     "implementation_details": "700-900 words: Step-by-step implementation process with commands/configs...",
-    "deployment_architecture": "400-600 words: Multi-cluster, multi-region deployment setup...",
+    "deployment_architecture": "400-600 words: Deployment topology, environments, and promotion strategy",
+    "security_considerations": "200-400 words: Security aspects discussed in the presentation — authentication, authorization, network policies, secrets management. Only include what was discussed. If the speakers did not cover security in detail, write a brief section with disclosure.",
     "observability_operations": "400-600 words: Monitoring, logging, alerting, operations...",
     "results_and_impact": "400-600 words: Quantitative results and business impact...",
     "lessons_learned": "400-600 words: What worked, what didn't, recommendations...",
@@ -263,6 +265,26 @@ This skill transforms deep technical analysis and diagram specifications into a 
 
 Follow these steps to generate the reference architecture:
 
+### FACT-GROUNDING RULE (Applies to ALL Steps Below)
+
+**This is the single most important rule in this entire skill.**
+
+Every sentence you write must be traceable to something explicitly said in the transcript. You have the `corrected_transcript` in your input — use it as your primary source of truth.
+
+**The Rules:**
+1. **Only write what was said.** If the speakers didn't mention it, don't write it.
+2. **Use their words.** Prefer the speakers' own phrasing over your paraphrase.
+3. **No version numbers unless stated.** If they said "Kubernetes" but not "v1.28," write "Kubernetes" only.
+4. **No configurations unless described.** If they didn't mention node types, CNI plugins, or cluster counts, don't invent them.
+5. **No timelines unless stated.** If they didn't give dates, durations, or phases, don't fabricate a timeline.
+6. **No team sizes unless stated.** If they didn't mention headcount, don't guess.
+7. **No cost figures unless stated.** If they didn't discuss costs, don't add any.
+8. **Shorter is better than fabricated.** A 200-word section of real facts beats a 600-word section with invented details.
+9. **Disclose gaps.** When the transcript doesn't cover a topic: "The presentation did not cover [topic] in detail."
+10. **Metrics need exact quotes.** Every metric must include the speaker's exact words as `transcript_quote`.
+
+**Before writing each section, search the `corrected_transcript` for relevant content. If you cannot find transcript evidence for a claim, do not write that claim.**
+
 ### Step 1: Extract and Validate Inputs
 
 Read all input data and validate structure:
@@ -273,8 +295,8 @@ Read all input data and validate structure:
 3. Load company_info from input
 4. Load video_metadata from input
 5. Verify all required fields are present
-6. Verify deep_analysis has 5+ CNCF projects
-7. Verify all 3 architecture layers are present
+6. Note how many CNCF projects are documented (report what's there)
+7. Note which architecture layers are documented
 ```
 
 ### Step 2: Generate Metadata
@@ -451,14 +473,16 @@ Paragraph 1: Company Overview (75-100 words)
 - Core business and products
 - Target market and scale
 - Extract from deep_analysis.sections.background and company_info
-- Example: "Example Corp is a global e-commerce platform serving 10 million monthly active users across 30 countries. Founded in 2015, the company processes over $500M in annual transactions through its web and mobile applications."
+- Example: "CERN operates the Large Hadron Collider and provides computing infrastructure for over 200,000 users. The organization needed to modernize its authentication infrastructure to handle 10,000 logins per hour."
+- Note: Only include details the speakers actually stated. If they didn't mention founding year, revenue, or employee count, omit those.
 
 Paragraph 2: Previous Architecture (100-125 words)
 - What they were using before (monolith, legacy systems, etc.)
 - Technical limitations of old approach
 - Specific pain points
 - Extract from deep_analysis.sections.background and technical_challenge
-- Example: "Prior to 2024, Example Corp ran on a monolithic Rails application deployed on EC2 instances behind an ELB. As the platform grew, they encountered several critical limitations: deploys took 45 minutes and required downtime, scaling required manual intervention, and debugging production issues was difficult due to lack of observability."
+- Example: "The previous architecture used Puppet-managed virtual machines with HAProxy in active-passive configuration, tightly coupling Keycloak with Infinispan caches."
+- Note: Describe the previous architecture using only what the speakers described. Do not invent deployment tools, cloud providers, or pain points they didn't mention.
 
 Paragraph 3: Business Drivers (75-100 words)
 - Why change was necessary
@@ -648,8 +672,8 @@ Key features utilized include:
 Node pools are segmented by workload type (general compute, memory-intensive, GPU). Cluster upgrades follow a rolling approach: dev clusters first, then staging, then production regions sequentially.
 
 Quality checks:
-- Total word count: 500-700 words (80-140 words per project)
-- Covers 5+ CNCF projects with proper paragraph structure
+- Total word count: 500-700 words (adjust based on number of projects from transcript)
+- Covers all CNCF projects named in the transcript with proper paragraph structure
 - Each project has 3-4 SHORT paragraphs (NOT one blob)
 - Includes version numbers and specific configurations
 - Explains WHY each project was chosen
@@ -836,9 +860,35 @@ Quality checks:
 - Shows regional organization and traffic routing
 ```
 
+### Step 11.5: Generate Security Considerations (200-400 words)
+
+**IMPORTANT:** Only write about security topics the speakers actually discussed. This section may be short if the presentation did not focus on security.
+
+```
+Paragraph 1: Security Topics Discussed (100-200 words)
+- What security aspects did the speakers describe?
+- Authentication, authorization, network policies, secrets management — ONLY if mentioned
+- Extract from corrected_transcript — search for security-related discussion
+- If the talk focused on security (e.g., "Securing a Particle Accelerator"), this should be substantive
+- If security was barely mentioned, write 2-3 sentences covering what was said
+
+Paragraph 2: Security Implementation Details (100-200 words, if available)
+- Specific security tools or practices mentioned
+- How security integrates with the architecture described
+- Only include details from the transcript
+- If the transcript has minimal security content, end with: "The presentation did not cover additional security implementation details."
+
+Quality checks:
+- Is every security claim traceable to the transcript?
+- Have you avoided inventing security practices the speakers didn't describe?
+- If security was a major topic, is this section appropriately detailed?
+```
+
 ### Step 12: Generate Observability and Operations (400-600 words)
 
 Describe monitoring, logging, alerting, and operational practices:
+
+**IMPORTANT:** Only write about observability topics the speakers actually discussed. Search the `corrected_transcript` for monitoring, logging, alerting, and operational content before writing.
 
 ```
 Paragraph 1: Observability Stack Overview (100-125 words)
@@ -1151,17 +1201,17 @@ Word Count:
 - [ ] Conclusion: 200-300 words
 
 Content Quality:
-- [ ] All sections are present (10 required sections)
-- [ ] 5+ CNCF projects documented
+- [ ] All sections are present
+- [ ] CNCF projects from transcript are documented
 - [ ] Each project has detailed usage description
 - [ ] Integration patterns between projects described
-- [ ] Includes specific commands, configs, or code snippets
 - [ ] All metrics have before/after/improvement values
 - [ ] All metrics have transcript quotes (no fabrication)
 - [ ] Technical terminology used correctly
 - [ ] Tone is technical and instructional (not marketing)
 - [ ] Company name is consistent throughout
 - [ ] No placeholder text like [COMPANY] or [PROJECT]
+- [ ] Every claim is traceable to corrected_transcript
 
 Metadata:
 - [ ] Title is descriptive and under 100 characters
@@ -1217,29 +1267,33 @@ If any validation fails:
 "The Kubernetes-based architecture improved API latency by 10x (500ms to 50ms) and supported 200% user growth without proportional infrastructure cost increases."
 ```
 
-### 3. Generic Implementation Details
+### 3. Fabricating Specificity
 
 **❌ Wrong:**
-```
-"The team implemented microservices and deployed them to Kubernetes clusters."
-```
-
-**✅ Correct:**
 ```
 "The team deployed 200+ microservices organized into 12 bounded contexts to three EKS clusters (us-east-1, us-west-2, eu-west-1) using eksctl with m5.2xlarge nodes and Calico CNI for network policies."
 ```
-
-### 4. Missing Technical Specificity
-
-**❌ Wrong:**
-```
-"Services communicate with each other through the service mesh."
-```
+(If the transcript only says "we moved to Kubernetes," do NOT invent the number of microservices, regions, node types, or CNI plugins.)
 
 **✅ Correct:**
 ```
+"The team migrated from VM-based infrastructure to Kubernetes for container orchestration."
+```
+(Match the level of detail in the transcript. If the speaker was brief, be brief.)
+
+### 4. Inventing Technical Details Not in Transcript
+
+**❌ Wrong:**
+```
 "Services communicate via HTTP/2 and gRPC through Istio v1.18 service mesh, with Envoy sidecar proxies automatically injected into all pods using the istio-injection=enabled namespace label. Mutual TLS is enforced for all service-to-service communication."
 ```
+(If the speaker only said "we use Istio for service mesh," do NOT invent the version number, sidecar injection method, or mTLS configuration.)
+
+**✅ Correct:**
+```
+"Services communicate through an Istio service mesh, which provides traffic management between Kubernetes services."
+```
+(Only include details the speaker actually described.)
 
 ### 5. Copying from Other Reference Architectures
 
@@ -1312,25 +1366,30 @@ Background: 350 words ✓
 
 ### Technical Depth
 
-Reference architectures must demonstrate implementation-level detail:
+Reference architectures must demonstrate implementation-level detail **from the transcript**:
 
-- ✅ Include specific version numbers (Kubernetes v1.26, Istio v1.18)
-- ✅ Include actual commands (`kubectl apply`, `helm install`)
-- ✅ Include configuration snippets (YAML, JSON)
-- ✅ Explain architectural decisions with rationale
-- ✅ Describe integration patterns between projects
-- ✅ Include performance tuning details
-- ✅ Describe operational practices
+- ✅ Include version numbers and configurations **only if stated in the transcript**
+- ✅ Include commands or configs **only if described by the speakers**
+- ✅ Explain architectural decisions with rationale **from the transcript**
+- ✅ Describe integration patterns **the speakers discussed**
+- ✅ Include performance tuning details **mentioned in the talk**
+- ✅ Describe operational practices **covered in the presentation**
+- ❌ Do NOT add generic Kubernetes knowledge or best practices not discussed
 
-### Technical Accuracy
+### Technical Accuracy (MOST IMPORTANT SECTION)
 
-All technical details must be accurate and verifiable:
+This report must be strictly fact-based. Only include information explicitly stated in the video transcript.
 
-- ✅ Extract from deep_analysis and transcript ONLY
-- ✅ Do NOT fabricate version numbers, metrics, or configurations
-- ✅ If transcript doesn't mention specifics, stay high-level
-- ✅ Verify CNCF project names are correct
-- ✅ Use correct technical terminology
+- ✅ Every claim must be traceable to the corrected_transcript
+- ✅ Do NOT fabricate version numbers, metrics, configurations, timelines, team sizes, or costs
+- ✅ If transcript doesn't mention specifics, write a shorter section — do NOT fill with generic details
+- ✅ When a topic was not discussed: "The presentation did not cover [topic] in detail."
+- ✅ Use the speakers' own words and phrasing where possible
+- ✅ Metrics must include exact transcript quotes — no converting qualitative statements to numbers
+- ✅ Do NOT add CNCF projects that were not explicitly named in the transcript
+- ❌ Do NOT extrapolate, infer, or deduce details the speakers didn't state
+- ❌ Do NOT add implementation details from general Kubernetes knowledge
+- ❌ Do NOT invent phases, timelines, or migration steps not described in the talk
 
 ### Target Audience: Engineers
 
@@ -1344,14 +1403,14 @@ Write for technical readers, not business audiences:
 
 ### Completeness
 
-All required sections and data:
+Report what the transcript contains — quality and accuracy over quantity:
 
-- ✅ All 10 sections present
-- ✅ Word counts within target ranges
-- ✅ 5+ CNCF projects documented
-- ✅ Integration patterns described
-- ✅ Metrics have before/after/improvement/quote
-- ✅ TAB metadata completed
+- ✅ All section headers present (some may be brief with disclosure if transcript is sparse)
+- ✅ Word counts are guidelines, not mandates — shorter factual sections beat longer fabricated ones
+- ✅ Document all CNCF projects explicitly named in the transcript (no minimum — report what's there)
+- ✅ Describe integration patterns mentioned by the speakers
+- ✅ Metrics have transcript quotes — only include metrics the speakers actually stated
+- ✅ TAB metadata completed with accurate information
 
 ---
 
