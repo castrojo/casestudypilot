@@ -32,7 +32,9 @@ from casestudypilot.validation import (
 )
 from casestudypilot.tools.validate_deep_analysis import main as validate_deep_analysis_main
 from casestudypilot.tools.validate_reference_architecture import main as validate_reference_architecture_main
-from casestudypilot.tools.assemble_reference_architecture import main as assemble_reference_architecture_main
+from casestudypilot.tools.assemble_reference_architecture import (
+    assemble_reference_architecture as assemble_reference_architecture_fn,
+)
 from casestudypilot.tools.github_client import fetch_github_profile, get_profile_completeness
 from casestudypilot.tools.multi_video_processor import fetch_multi_video_data
 from casestudypilot.tools.profile_assembler import assemble_presenter_profile
@@ -565,7 +567,7 @@ def assemble_reference_architecture_cmd(
     output: Path = typer.Argument(..., help="Output markdown file path"),
 ):
     """Assemble reference architecture markdown from JSON."""
-    exit_code = assemble_reference_architecture_main(str(ref_arch_json), str(output))
+    exit_code = assemble_reference_architecture_fn(str(ref_arch_json), [], str(output))
     sys.exit(exit_code)
 
 
