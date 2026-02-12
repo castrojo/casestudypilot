@@ -17,7 +17,7 @@ This agent extends the casestudypilot framework to generate reference architectu
 
 **Key Differences from Case Study Agent:**
 - 13 sections vs 5 sections
-- 5+ CNCF projects vs 2+ projects  
+- All CNCF projects explicitly named in transcript (no minimum) vs 2+ projects  
 - Technical depth score >= 0.70 vs 0.60
 - Architecture diagrams with component specifications
 - Suitable for CNCF TAB submission
@@ -200,8 +200,8 @@ The deep analysis did not extract sufficient technical content for a reference a
 $(python -m casestudypilot validate-deep-analysis transcript_deep_analysis.json 2>&1 | grep "❌")
 
 **Requirements for Reference Architectures:**
-- Minimum 5 CNCF projects (found: $(jq '.cncf_projects | length' transcript_deep_analysis.json))
-- All 3 architecture layers documented (infrastructure, platform, application)
+- CNCF projects explicitly named in transcript (found: $(jq '.cncf_projects | length' transcript_deep_analysis.json))
+- Architecture layers documented as discussed in transcript
 - At least 2 integration patterns described
 - Technical metrics with supporting transcript quotes
 - Minimum 6 screenshot opportunities
@@ -610,7 +610,7 @@ $(jq -r '.key_metrics_summary[] | \"- **\(.metric)**: \(.improvement) → \(.bus
 
 All validation checkpoints passed:
 - ✅ Transcript quality (>2000 chars)
-- ✅ Deep analysis quality (5+ CNCF projects, 3 architecture layers, 2+ integration patterns)
+- ✅ Deep analysis quality
 - ✅ Metric fabrication check (all metrics have transcript quotes)
 - ✅ Company consistency check (content matches verified company)
 - ✅ Final technical depth (score >= 0.70)
@@ -725,8 +725,8 @@ If a workflow fails:
 
 - **Transcript**: >= 2000 characters
 - **Video Length**: >= 15 minutes (20-40 minutes recommended)
-- **CNCF Projects**: >= 5 projects featured
-- **Architecture Layers**: All 3 layers documented (infrastructure, platform, application)
+- **CNCF Projects**: All projects explicitly named in transcript
+- **Architecture Layers**: Document layers discussed in transcript
 - **Integration Patterns**: >= 2 patterns described
 - **Technical Metrics**: Quantitative results with transcript quotes
 - **Screenshots**: 6 high-quality screenshots
@@ -736,7 +736,7 @@ If a workflow fails:
 ### Sub-Score Targets
 
 For technical depth >= 0.70, aim for:
-- CNCF Project Depth: >= 0.80 (5+ projects, 3+ categories, integration patterns)
+- CNCF Project Depth: >= 0.80 (projects explicitly named, 3+ categories, integration patterns)
 - Technical Specificity: >= 0.60 (commands, versions, configs, patterns)
 - Implementation Detail: >= 0.70 (500+ words, phases, challenges)
 - Metric Quality: >= 0.80 (3+ metrics with before/after)
@@ -800,7 +800,7 @@ This agent generates content that must be strictly fact-based:
   - 18-step workflow with 5 validation checkpoints
   - Technical depth scoring algorithm (5 sub-scores)
   - CNCF TAB submission guidance
-  - Supports videos 15-40 minutes with 5+ CNCF projects
+  - Supports videos 15-40 minutes with technical CNCF content
 
 ---
 

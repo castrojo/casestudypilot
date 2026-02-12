@@ -492,7 +492,7 @@ gh issue list --label "epic" --state open
 **Workflow:** 18 steps with 7 validation checkpoints (5 critical)  
 **Location:** `.github/agents/reference-architecture-agent.md`
 
-**Purpose:** Generate comprehensive CNCF reference architectures (2000-5000 words, 13 sections, 5+ CNCF projects) suitable for Technical Advisory Board (TAB) submission. Designed for technical audiences (engineers, architects).
+**Purpose:** Generate comprehensive CNCF reference architectures (2000-5000 words, 13 sections) suitable for Technical Advisory Board (TAB) submission. Designed for technical audiences (engineers, architects). Only includes CNCF projects explicitly named in the source transcript.
 
 **Summary:**
 1. Pre-flight checks (environment ready?)
@@ -500,7 +500,7 @@ gh issue list --label "epic" --state open
 3. Extract company name → Validate company
 4. Verify CNCF membership
 5. **Skill:** Correct transcript (transcript-correction)
-6. **Skill:** Deep analysis (transcript-deep-analysis) → Validate deep analysis (5+ projects, 3 layers, 2+ patterns) **[CRITICAL]**
+6. **Skill:** Deep analysis (transcript-deep-analysis) → Validate deep analysis **[CRITICAL]**
 7. Extract 6+ screenshots
 8. **Skill:** Architecture diagram specification (architecture-diagram-specification)
 9. **Skill:** Generate reference architecture (reference-architecture-generation)
@@ -538,7 +538,7 @@ The reference architecture agent uses a **5-dimensional scoring system** with we
 
 ```python
 technical_depth_score = (
-    0.25 * cncf_project_depth +      # 5+ projects, detailed descriptions
+    0.25 * cncf_project_depth +      # Projects explicitly named, detailed descriptions
     0.20 * technical_specificity +    # Concrete implementation details
     0.20 * implementation_detail +    # Version numbers, configurations
     0.20 * metric_quality +           # Quantifiable results with citations
@@ -550,7 +550,7 @@ technical_depth_score = (
 
 **When to Use:**
 - ✅ Video is 15-40 minutes with technical depth
-- ✅ Discusses comprehensive architecture (5+ CNCF projects)
+- ✅ Discusses comprehensive architecture (multiple CNCF projects)
 - ✅ Includes system diagrams or detailed demos
 - ✅ Covers integration patterns and implementation details
 - ✅ Target audience is engineers/architects
@@ -709,7 +709,7 @@ primary_patterns:
 [200-400 words - textual specifications]
 
 ## CNCF Projects Deep Dive
-[600-1000 words - 5+ projects]
+[600-1000 words - all projects explicitly named in transcript]
 
 ## Integration Patterns
 [300-500 words]
@@ -739,7 +739,7 @@ primary_patterns:
 **Skills Used:**
 
 1. **transcript-deep-analysis** (38KB)
-   - Extracts 5+ CNCF projects with usage context
+   - Extracts all CNCF projects explicitly named in transcript with usage context
    - Identifies 3-layer architecture (Infrastructure, Platform, Application)
    - Finds integration patterns between components
    - Extracts technical metrics with transcript quotes
@@ -763,9 +763,9 @@ primary_patterns:
 ```bash
 # Validate deep analysis output
 python -m casestudypilot validate-deep-analysis deep_analysis.json
-# Exit 0: 5+ projects, 3 layers, 2+ patterns ✅
-# Exit 1: 4 projects or 1 pattern ⚠️
-# Exit 2: <4 projects or missing layers ❌
+# Exit 0: sufficient projects, layers, patterns ✅
+# Exit 1: fewer projects or patterns ⚠️
+# Exit 2: insufficient projects or missing layers ❌
 
 # Validate technical depth score
 python -m casestudypilot validate-reference-architecture ref_arch.json

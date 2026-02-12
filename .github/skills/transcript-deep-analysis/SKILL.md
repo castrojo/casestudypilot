@@ -813,9 +813,9 @@ If validation returns exit code 2, the agent will stop and post an error to the 
 ```
 
 **Why Wrong:**
-- Only 2 projects (need minimum 5)
 - Docker is not a CNCF project (it's containerd)
-- Usage contexts are vague
+- Usage contexts are vague ("Container orchestration", "Containers" — use the speaker's own words)
+- Only include projects explicitly named in the transcript
 
 **Fix:**
 ```json
@@ -823,9 +823,7 @@ If validation returns exit code 2, the agent will stop and post an error to the 
   "cncf_projects": [
     {"name": "Kubernetes", "category": "orchestration", "usage_context": "Primary orchestration platform managing 200 microservices", "integration_pattern": "native", "confidence": "high"},
     {"name": "Istio", "category": "service-mesh", "usage_context": "Traffic management and mTLS for service-to-service communication", "integration_pattern": "sidecar", "confidence": "high"},
-    {"name": "Prometheus", "category": "observability", "usage_context": "Metrics collection with 15-second scrape interval", "integration_pattern": "native", "confidence": "high"},
-    {"name": "Argo CD", "category": "ci-cd", "usage_context": "GitOps deployment tool", "integration_pattern": "operator", "confidence": "high"},
-    {"name": "Open Policy Agent", "category": "security", "usage_context": "Admission control policy enforcement", "integration_pattern": "native", "confidence": "high"}
+    {"name": "Prometheus", "category": "observability", "usage_context": "Metrics collection with 15-second scrape interval", "integration_pattern": "native", "confidence": "high"}
   ]
 }
 ```
@@ -851,6 +849,7 @@ If validation returns exit code 2, the agent will stop and post an error to the 
 - Vague metric name ("Performance")
 - Non-quantitative values ("slow", "fast")
 - Meaningless unit ("speed")
+- `"implied"` is not a valid source_confidence — only `"explicit"` and `"paraphrased"` are allowed
 
 **Fix:**
 ```json
