@@ -3,7 +3,7 @@
 **Version:** 1.0.0  
 **Purpose:** Deep technical analysis of video transcripts to extract architectural patterns, CNCF projects, integration patterns, and technical implementation details for reference architecture generation.
 
-**Difference from transcript-analysis:** This skill performs deeper technical extraction (5+ CNCF projects vs. 2+, architectural patterns, integration patterns, technical metrics) required for reference architectures.
+**Difference from transcript-analysis:** This skill performs deeper technical extraction (architectural patterns, integration patterns, technical metrics) required for reference architectures. Extract only what is explicitly stated in the transcript — quality and accuracy over quantity.
 
 ---
 
@@ -35,9 +35,9 @@
     {
       "name": "Kubernetes",
       "category": "orchestration|networking|storage|observability|security|service-mesh|ci-cd|other",
-      "usage_context": "How the project is used in the architecture",
+      "usage_context": "How the project is used, in the speaker's own words",
       "integration_pattern": "sidecar|operator|plugin|extension|native|custom",
-      "confidence": "high|medium|low"
+      "confidence": "high"
     }
   ],
   "architecture_components": {
@@ -77,7 +77,7 @@
       "before_value": "weekly",
       "after_value": "10x per day",
       "measurement_unit": "deployments",
-      "source_confidence": "explicit|implied|estimated",
+      "source_confidence": "explicit|paraphrased",
       "transcript_quote": "Exact quote from transcript supporting this metric"
     }
   ],
@@ -110,11 +110,11 @@
 ```
 
 **Output Requirements:**
-- **cncf_projects**: Minimum 5 projects (enforced by validate-deep-analysis)
-- **architecture_components**: All 3 layers required (infrastructure, platform, application)
-- **integration_patterns**: At least 2 patterns required
+- **cncf_projects**: Only projects explicitly named in the transcript (no minimum — report what's there)
+- **architecture_components**: Include layers discussed in the transcript (note gaps with disclosure)
+- **integration_patterns**: Include patterns described in the transcript
 - **technical_metrics**: All metrics must have `transcript_quote` for validation
-- **sections**: Each section must be 200-600 words
+- **sections**: Each section should cover what the transcript discusses (shorter is acceptable)
 - **screenshot_opportunities**: Minimum 6 opportunities (for reference architecture needs)
 
 ---
@@ -137,41 +137,48 @@
 
 ---
 
-### Step 2: Extract CNCF Projects (Minimum 5)
+### Step 2: Extract CNCF Projects (Transcript-Only)
 
-**Objective:** Identify all CNCF projects mentioned or implied in the transcript.
+**Objective:** Identify all CNCF projects **explicitly mentioned by name** in the transcript. Do NOT infer or imply projects.
+
+**CRITICAL RULE: Transcript-only extraction.** If a speaker says "service mesh" but never names Istio, Linkerd, or Envoy, do NOT add any of those projects. Record the generic term in the usage context of the component that mentions it, but do not fabricate a specific project name.
 
 **Method:**
-1. Search for explicit project mentions: "Kubernetes", "Prometheus", "Envoy", etc.
-2. Search for implied projects:
-   - "service mesh" → Istio, Linkerd, or Envoy
-   - "observability stack" → Prometheus, Grafana, Jaeger
-   - "container orchestration" → Kubernetes
-   - "CI/CD pipeline" → Argo CD, Tekton, Flux
-3. Categorize each project (orchestration, networking, storage, etc.)
-4. Determine usage context from transcript
-5. Identify integration patterns (sidecar, operator, plugin, etc.)
-6. Assign confidence level:
-   - **high**: Explicitly mentioned by name with usage details
-   - **medium**: Strongly implied or mentioned without details
-   - **low**: Inferred from context or industry standards
+1. Search for explicit project mentions by name: "Kubernetes", "Prometheus", "Envoy", "Argo CD", etc.
+2. For each explicitly named project:
+   - Categorize (orchestration, networking, storage, etc.)
+   - Extract usage context **using the speaker's own words**
+   - Identify integration patterns **only if described in the transcript**
+3. Do NOT add projects that were never mentioned by name
+4. Do NOT map generic terms to specific projects (e.g., "CI/CD" does not mean "Argo CD")
 
 **Quality Checks:**
-- Are there at least 5 CNCF projects identified?
-- Does each project have a clear usage context?
-- Are projects from diverse categories (not all orchestration)?
-- Are confidence levels justified?
+- Is every project explicitly mentioned by name in the transcript?
+- Is the usage context derived from what the speaker actually said?
+- Could you point to the exact moment in the transcript where each project was named?
 
 **Example:**
 ```json
 {
   "name": "Kubernetes",
   "category": "orchestration",
-  "usage_context": "Primary container orchestration platform managing 500+ microservices across 3 clusters",
+  "usage_context": "Container orchestration platform for running Keycloak pods across multiple clusters",
   "integration_pattern": "native",
   "confidence": "high"
 }
 ```
+
+**Anti-Pattern (DO NOT DO):**
+```json
+{
+  "name": "Calico",
+  "category": "networking",
+  "usage_context": "CNI plugin for network policies",
+  "integration_pattern": "plugin",
+  "confidence": "low"
+}
+```
+Why wrong: If the speaker never said "Calico," do not include it — even if Kubernetes typically uses a CNI plugin.
 
 ---
 
@@ -204,8 +211,9 @@
 4. Note if component is custom-built or CNCF-based
 
 **Quality Checks:**
-- Are all 3 layers represented?
-- Does each layer have at least 2 components?
+- Are the layers populated with components **actually mentioned in the transcript**?
+- If the transcript does not discuss a layer, note: "The presentation did not discuss [layer] components."
+- Do NOT invent components to fill layers. Report only what was described.
 - Are CNCF projects correctly associated with components?
 - Does the architecture flow logically (bottom to top)?
 
@@ -282,9 +290,10 @@
 3. Extract after value (with units)
 4. Note measurement unit (ms, requests/sec, dollars, etc.)
 5. Determine source confidence:
-   - **explicit**: Directly stated in transcript
-   - **implied**: Calculated from context
-   - **estimated**: Best guess from vague statements
+   - **explicit**: Directly stated in transcript with specific numbers
+   - **paraphrased**: Speaker described the improvement qualitatively (e.g., "much faster") — record their exact words in transcript_quote, do NOT convert to a number
+
+   **CRITICAL:** Do NOT include "implied" or "estimated" metrics. If the speaker did not state a metric, it does not exist. If they said "much less operational burden," record that quote — do NOT convert it to "70% reduction."
 6. **CRITICAL**: Extract exact quote from transcript supporting this metric
 
 **Quality Checks:**
@@ -323,6 +332,21 @@
 
 **Objective:** Write comprehensive technical sections for the reference architecture.
 
+**CRITICAL: Transcript-only content.** Every claim, fact, number, timeline, and technical detail in every section must come from the transcript. If the transcript does not discuss a topic for a given section, write a brief section covering only what was said, followed by: "The presentation did not cover [topic] in detail."
+
+**Do NOT:**
+- Infer version numbers, configurations, or team sizes not mentioned in the transcript
+- Add implementation steps that were not described by the speakers
+- Fill sections with generic cloud-native best practices
+- Extrapolate timelines, costs, or staffing details
+- Write about topics the speakers did not discuss
+
+**DO:**
+- Use the speakers' own words and phrasing where possible
+- Quote the transcript directly when describing results or metrics
+- Write shorter sections when the transcript has less detail on that topic
+- Clearly disclose when a topic was not covered: "The presentation did not cover [topic] in detail."
+
 **Section 1: Background (200-400 words)**
 
 **Content Requirements:**
@@ -333,6 +357,7 @@
 - Why is this architecture significant? (innovative, large-scale, etc.)
 
 **Tone:** Professional, factual, sets context without jargon
+- **Sourcing:** Every fact must come from the transcript. If the transcript does not provide information for a bullet point above, omit it rather than fabricate it.
 
 **Example Opening:**
 > "[Company] is a [industry] company that provides [product/service] to [customer base]. Founded in [year], the company has grown to [scale metrics] and processes [technical scale]. As the business scaled, their infrastructure needed to evolve from [before] to [after] to meet [business requirement]."
@@ -348,6 +373,7 @@
 - Business impact of the problem (downtime, lost revenue, customer complaints)
 
 **Tone:** Problem-focused, technical, creates urgency
+- **Sourcing:** Every fact must come from the transcript. If the transcript does not provide information for a bullet point above, omit it rather than fabricate it.
 
 **Structure:**
 1. Paragraph 1: Primary technical problem with specific symptoms
@@ -369,6 +395,7 @@
 - Overview of CNCF projects used and their roles
 
 **Tone:** Technical but accessible, architectural thinking
+- **Sourcing:** Every fact must come from the transcript. If the transcript does not provide information for a bullet point above, omit it rather than fabricate it.
 
 **Structure:**
 1. Paragraph 1: High-level architecture description (3-4 key components)
@@ -392,6 +419,7 @@
 - Migration strategy (if applicable)
 
 **Tone:** Deep technical, instructional, lessons learned
+- **Sourcing:** Every fact must come from the transcript. If the transcript does not provide information for a bullet point above, omit it rather than fabricate it.
 
 **Structure:**
 1. Paragraph 1: Implementation approach and phases
@@ -415,6 +443,7 @@
 - Business impact (revenue, customer satisfaction, cost savings)
 
 **Tone:** Results-focused, data-driven, celebratory but factual
+- **Sourcing:** Every fact must come from the transcript. If the transcript does not provide information for a bullet point above, omit it rather than fabricate it.
 
 **Structure:**
 1. Paragraph 1: Primary technical results (performance, reliability)
@@ -436,6 +465,7 @@
 - Future improvements planned
 
 **Tone:** Reflective, honest, instructional
+- **Sourcing:** Every fact must come from the transcript. If the transcript does not provide information for a bullet point above, omit it rather than fabricate it.
 
 **Structure:**
 1. Paragraph 1: What worked well and why
@@ -530,14 +560,14 @@
 Reference architectures require higher technical depth than case studies:
 
 1. **CNCF Project Coverage:**
-   - Minimum 5 CNCF projects (vs. 2 for case studies)
-   - Projects from at least 3 different categories
-   - Each project must have clear usage context
+   - Only projects explicitly named in the transcript (no minimum)
+   - Each project must have clear usage context from the speaker's words
+   - Do NOT infer projects from generic terms
 
 2. **Architecture Detail:**
-   - All 3 layers documented (infrastructure, platform, application)
-   - At least 2 integration patterns explained
-   - Specific configuration details (not generic)
+   - Document layers discussed in the transcript (note gaps with disclosure)
+   - Describe integration patterns the speakers mentioned
+   - Include only configuration details from the transcript (not generic knowledge)
 
 3. **Technical Metrics:**
    - All metrics must have transcript quotes (for fabrication prevention)
@@ -554,12 +584,11 @@ Reference architectures require higher technical depth than case studies:
 Your output will be validated by `validate-deep-analysis` CLI tool:
 
 **Validation Checks:**
-1. `len(cncf_projects) >= 5` - Minimum project count
-2. All 3 architecture layers present with at least 1 component each
-3. `len(integration_patterns) >= 2` - Minimum integration patterns
-4. All technical metrics have non-empty `transcript_quote`
-5. `len(screenshot_opportunities) >= 6` - Minimum screenshots
-6. Each section is 200-800 words
+1. All CNCF projects are explicitly named in the transcript
+2. Architecture layers present reflect what was discussed
+3. All technical metrics have non-empty `transcript_quote`
+4. `len(screenshot_opportunities) >= 6` - Minimum screenshots
+5. Sections cover transcript content (shorter is acceptable for sparse topics)
 
 **Exit Codes:**
 - 0: PASS - All validations passed
@@ -895,13 +924,13 @@ If validation returns exit code 2, the agent will stop and post an error to the 
 Your output is successful if:
 
 1. ✅ Validates successfully with `validate-deep-analysis` (exit code 0)
-2. ✅ Contains at least 5 CNCF projects with specific usage contexts
-3. ✅ Documents all 3 architecture layers with at least 2 components each
-4. ✅ Identifies at least 2 integration patterns with technical details
+2. ✅ Contains only CNCF projects explicitly named in the transcript
+3. ✅ Documents architecture layers discussed in the transcript (gaps disclosed)
+4. ✅ Integration patterns are grounded in what speakers described
 5. ✅ All metrics have supporting transcript quotes
-6. ✅ Each section is 200-800 words with technical depth
+6. ✅ Each section covers transcript content faithfully (shorter is acceptable)
 7. ✅ Identifies at least 6 screenshot opportunities with clear descriptions
-8. ✅ Output is based on transcript content (no fabrication)
+8. ✅ Output is strictly based on transcript content (no fabrication, no inference)
 
 ---
 
