@@ -23,6 +23,10 @@ from casestudypilot.validation import (
     validate_analysis as validate_analysis_fn,
     validate_metrics as validate_metrics_fn,
     validate_company_consistency as validate_company_consistency_fn,
+    validate_presenter,
+    validate_biography,
+    validate_profile_update,
+    validate_presenter_profile,
     Severity,
 )
 from casestudypilot.tools.validate_deep_analysis import main as validate_deep_analysis_main
@@ -33,11 +37,6 @@ from casestudypilot.tools.multi_video_processor import fetch_multi_video_data
 from casestudypilot.tools.profile_assembler import assemble_presenter_profile
 from casestudypilot.tools.issue_parser import parse_issue
 from casestudypilot.tools.update_readme_index import update_readme_index
-# TODO: Implement these validation modules (future tasks)
-# from casestudypilot.validation.presenter import validate_presenter
-# from casestudypilot.validation.biography import validate_biography
-# from casestudypilot.validation.profile_update import validate_profile_update
-# from casestudypilot.validation.presenter_profile import validate_presenter_profile
 
 app = typer.Typer(name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False)
 console = Console()
