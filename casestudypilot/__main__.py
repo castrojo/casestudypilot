@@ -28,6 +28,7 @@ from casestudypilot.validation import (
     validate_profile_update,
     validate_presenter_profile,
     Severity,
+    ValidationResult,
 )
 from casestudypilot.tools.validate_deep_analysis import main as validate_deep_analysis_main
 from casestudypilot.tools.validate_reference_architecture import main as validate_reference_architecture_main
@@ -40,6 +41,45 @@ from casestudypilot.tools.update_readme_index import update_readme_index
 
 app = typer.Typer(name="casestudypilot", help="CNCF Case Study Automation CLI", add_completion=False)
 console = Console()
+
+
+def _display_validation_result(result: ValidationResult, show_passed: bool = False) -> None:
+    """Display a ValidationResult and exit with appropriate code.
+
+    This is the shared display/exit logic for all validate-* commands.
+
+    Args:
+        result: A ValidationResult instance
+        show_passed: If True, also display passing checks (default: only failures)
+    """
+    console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
+
+    if result.is_critical():
+        console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
+    elif result.has_warnings():
+        console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
+    else:
+        console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
+
+    for check in result.checks:
+        if not check.passed:
+            icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
+            color = "red" if check.severity == Severity.CRITICAL else "yellow"
+            console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
+            if check.details:
+                console.print(f"    [dim]{check.details}[/dim]")
+        elif show_passed:
+            console.print(f"  [green]✓ {check.name}[/green]: {check.message}")
+
+    console.print(f"\n[dim]Full validation result:[/dim]")
+    console.print(json.dumps(result.to_dict(), indent=2))
+
+    if result.is_critical():
+        sys.exit(2)
+    elif result.has_warnings():
+        sys.exit(1)
+    else:
+        sys.exit(0)
 
 
 @app.command()
@@ -324,39 +364,7 @@ def validate_transcript_cmd(
 
         # Validate transcript
         result = validate_transcript_fn(data.get("transcript", ""), data.get("transcript_segments", []))
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.is_critical():
-            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-                if check.details:
-                    console.print(f"    [dim]{check.details}[/dim]")
-
-        # Output JSON
-        output_json = result.to_dict()
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(output_json, indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)  # Critical failure
-        elif result.has_warnings():
-            sys.exit(1)  # Warnings
-        else:
-            sys.exit(0)  # Pass
-
+        _display_validation_result(result)
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(2)
@@ -373,36 +381,7 @@ def validate_company_cmd(
         console.print(f"[cyan]Validating company name:[/cyan] {company_name}")
 
         result = validate_company_name_fn(company_name, video_title, confidence)
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.is_critical():
-            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)
-        elif result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
-
+        _display_validation_result(result)
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(2)
@@ -421,36 +400,7 @@ def validate_analysis_cmd(
             data = json.load(f)
 
         result = validate_analysis_fn(data)
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.is_critical():
-            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)
-        elif result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
-
+        _display_validation_result(result)
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(2)
@@ -475,32 +425,7 @@ def validate_metrics_cmd(
             analysis_data = json.load(f)
 
         result = validate_metrics_fn(sections_data, video_data_json.get("transcript", ""), analysis_data)
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL METRICS VERIFIED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                console.print(f"  [yellow]⚠ {check.name}[/yellow]: {check.message}")
-            else:
-                console.print(f"  [green]✓ {check.name}[/green]: {check.message}")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
-
+        _display_validation_result(result, show_passed=True)
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(2)
@@ -528,37 +453,12 @@ def validate_consistency_cmd(
 
         result = validate_company_consistency_fn(expected_company, sections_data, video_data_json)
 
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
+        # Show Spotify bug warning if critical
         if result.is_critical():
             console.print("\n[red bold]CRITICAL: COMPANY MISMATCH DETECTED![/red bold]")
             console.print("[red]This could be the Spotify hallucination bug![/red]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]COMPANY CONSISTENCY VERIFIED[/green bold]")
 
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-                if check.details:
-                    console.print(f"    [dim]{check.details}[/dim]")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)
-        elif result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        _display_validation_result(result)
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -838,37 +738,7 @@ def validate_presenter_cmd(
             data = json.load(f)
 
         result = validate_presenter(presenter_name, data)
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.is_critical():
-            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-                if check.details:
-                    console.print(f"    [dim]{check.details}[/dim]")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)
-        elif result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        _display_validation_result(result)
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -888,37 +758,7 @@ def validate_biography_cmd(
             data = json.load(f)
 
         result = validate_biography(data)
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.is_critical():
-            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-                if check.details:
-                    console.print(f"    [dim]{check.details}[/dim]")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)
-        elif result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        _display_validation_result(result)
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -941,37 +781,7 @@ def validate_profile_update_cmd(
             new_data = json.load(f)
 
         result = validate_profile_update(existing_data, new_data)
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.is_critical():
-            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-                if check.details:
-                    console.print(f"    [dim]{check.details}[/dim]")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)
-        elif result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        _display_validation_result(result)
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -992,39 +802,7 @@ def validate_presenter_profile_cmd(
             data = json.load(f)
 
         result = validate_presenter_profile(data, threshold)
-
-        # Display result
-        console.print(f"\n[bold]Validation Status:[/bold] {result.status.value}")
-
-        if result.is_critical():
-            console.print("\n[red bold]CRITICAL ERRORS:[/red bold]")
-        elif result.has_warnings():
-            console.print("\n[yellow bold]WARNINGS:[/yellow bold]")
-        else:
-            console.print("\n[green bold]ALL CHECKS PASSED[/green bold]")
-
-        # Display checks
-        for check in result.checks:
-            if not check.passed:
-                icon = "✗" if check.severity == Severity.CRITICAL else "⚠"
-                color = "red" if check.severity == Severity.CRITICAL else "yellow"
-                console.print(f"  [{color}]{icon} {check.name}[/{color}]: {check.message}")
-                if check.details:
-                    console.print(f"    [dim]{check.details}[/dim]")
-            else:
-                console.print(f"  [green]✓ {check.name}[/green]: {check.message}")
-
-        # Output JSON
-        console.print(f"\n[dim]Full validation result:[/dim]")
-        console.print(json.dumps(result.to_dict(), indent=2))
-
-        # Exit with appropriate code
-        if result.is_critical():
-            sys.exit(2)
-        elif result.has_warnings():
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        _display_validation_result(result, show_passed=True)
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
