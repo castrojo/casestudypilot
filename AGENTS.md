@@ -430,6 +430,36 @@ gh issue list --label "epic" --state open
 - Focus on essential information only
 - Let labels handle categorization
 
+### 7. Fact-Based Content Generation
+
+**CRITICAL:** All generated content must be strictly fact-based — grounded only in what was explicitly stated in the source material (video transcript).
+
+**The Rules:**
+1. **Only write what was said.** If the speakers didn't mention it, don't write it.
+2. **No inference or extrapolation.** Do not add details from general domain knowledge.
+3. **No fabricated specificity.** If the speaker said "we use Kubernetes," do not add version numbers, node types, or CNI plugins they didn't mention.
+4. **Metrics need exact quotes.** Every quantitative claim must include the speaker's exact words.
+5. **Shorter is better than fabricated.** A brief factual section beats a long section with invented details.
+6. **Disclose gaps.** When source material doesn't cover a topic: "The presentation did not cover [topic] in detail."
+7. **Relax minimums.** Report what's actually in the source material. If only 3 CNCF projects were named, report 3 — do not infer additional projects to meet a quota.
+
+**Why this matters:**
+- CNCF TAB submissions must be factually accurate
+- Fabricated details damage credibility and can be caught by reviewers who watch the source video
+- A shorter, accurate report is more valuable than a longer, unreliable one
+- Trust in the framework depends on readers being able to verify every claim against the source
+
+**Anti-patterns:**
+- "The team deployed Kubernetes v1.28 with Calico CNI" (version and CNI not mentioned in transcript)
+- "70% reduction in operational burden" (speaker said "much less" — do not convert qualitative to quantitative)
+- Adding CNCF projects inferred from generic terms ("service mesh" -> Istio)
+- Inventing migration phases, timelines, or team sizes not discussed by speakers
+
+**Correct patterns:**
+- "The team migrated from VM-based infrastructure to Kubernetes" (matches transcript)
+- "The speaker described 'much less' operational burden after the migration" (quotes exact words)
+- Section ending with "The presentation did not cover security implementation in detail."
+
 ## Operational Workflows
 
 ### Current Implementation: Case Study Generation
@@ -489,7 +519,7 @@ gh issue list --label "epic" --state open
 | Aspect | Case Study Agent | Reference Architecture Agent |
 |--------|------------------|------------------------------|
 | Content Depth | 500-1500 words, 5 sections | 2000-5000 words, 13 sections |
-| CNCF Projects | 2+ projects | 5+ projects with detailed usage |
+| CNCF Projects | 2+ projects | All projects explicitly named in transcript (no minimum) |
 | Architecture | Overview only | 3-layer breakdown + integration patterns |
 | Diagrams | None | Textual component + data flow specs |
 | Screenshots | 3 screenshots | 6+ screenshots (architecture-focused) |
