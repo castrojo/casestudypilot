@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 from typing import Dict, List, Any
-from casestudypilot.validation import validate_case_study_format, Severity
+from casestudypilot.validation import validate_case_study_format, Severity, ValidationResult, ValidationCheck
 
 
 # Quality scoring weights
@@ -87,9 +87,7 @@ def validate_content_depth(sections: Dict[str, str]) -> Dict[str, Any]:
         if section_name in sections:
             word_count = count_words(sections[section_name])
             if word_count < min_words:
-                issues.append(
-                    f"{section_name}: {word_count} words (minimum {min_words})"
-                )
+                issues.append(f"{section_name}: {word_count} words (minimum {min_words})")
                 total_penalty += 0.2
         else:
             issues.append(f"{section_name}: missing")
@@ -238,9 +236,7 @@ def generate_warnings(
         warnings.extend(content_depth["issues"])
 
     if not cncf_mentions["passed"]:
-        warnings.append(
-            f"Only {len(cncf_mentions['mentioned_projects'])} CNCF projects mentioned (minimum 2)"
-        )
+        warnings.append(f"Only {len(cncf_mentions['mentioned_projects'])} CNCF projects mentioned (minimum 2)")
 
     if not formatting["passed"]:
         warnings.extend(formatting["issues"])
@@ -251,7 +247,7 @@ def generate_warnings(
     return warnings
 
 
-def validate_case_study(file_path: Path, threshold: float = 0.60) -> Dict[str, Any]:
+def validate_case_study(file_path: Path, threshold: float = 0.60) -> ValidationResult:
     """Validate case study and return quality assessment."""
     content = read_case_study(file_path)
     sections = extract_sections(content)
@@ -264,28 +260,53 @@ def validate_case_study(file_path: Path, threshold: float = 0.60) -> Dict[str, A
     format_compliance = validate_format_compliance(file_path)
 
     # Calculate overall score
-    quality_score = calculate_quality_score(
-        structure, content_depth, cncf_mentions, formatting, format_compliance
+    quality_score = calculate_quality_score(structure, content_depth, cncf_mentions, formatting, format_compliance)
+
+    # Build ValidationChecks
+    checks = []
+
+    # Overall score check
+    if quality_score < 0.60:
+        severity = Severity.CRITICAL
+        passed = False
+    elif quality_score < 0.75:
+        severity = Severity.WARNING
+        passed = False
+    else:
+        severity = Severity.PASS
+        passed = True
+
+    checks.append(
+        ValidationCheck(
+            name="overall_score",
+            passed=passed,
+            severity=severity,
+            message=f"Overall quality score: {quality_score:.2f} (threshold: {threshold:.2f})",
+            details={
+                "score": quality_score,
+                "threshold": threshold,
+                "section_scores": {
+                    "structure": structure,
+                    "content_depth": content_depth,
+                    "cncf_mentions": cncf_mentions,
+                    "formatting": formatting,
+                    "format_compliance": format_compliance,
+                },
+            },
+        )
     )
 
-    # Generate warnings
-    warnings = generate_warnings(
-        structure, content_depth, cncf_mentions, formatting, format_compliance
-    )
+    # Generate warnings from individual categories
+    warnings = generate_warnings(structure, content_depth, cncf_mentions, formatting, format_compliance)
 
-    # Determine if passes threshold
-    passes = quality_score >= threshold
+    for warning in warnings:
+        checks.append(
+            ValidationCheck(
+                name="content_issue",
+                passed=False,
+                severity=Severity.WARNING,
+                message=warning,
+            )
+        )
 
-    return {
-        "quality_score": quality_score,
-        "threshold": threshold,
-        "passes": passes,
-        "warnings": warnings,
-        "details": {
-            "structure": structure,
-            "content_depth": content_depth,
-            "cncf_mentions": cncf_mentions,
-            "formatting": formatting,
-            "format_compliance": format_compliance,
-        },
-    }
+    return ValidationResult.from_checks(checks)

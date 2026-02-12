@@ -312,42 +312,24 @@ def validate(
 
         # Write to file
         with open(output, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2)
+            json.dump(result.to_dict(), f, indent=2)
 
         console.print(f"[green]✓ Validation results saved to:[/green] {output}")
 
-        # Display result
-        score = result["quality_score"]
-        if result["passes"]:
-            console.print(f"[green]✓ Quality score: {score:.2f}[/green] (threshold: {threshold:.2f})")
-        else:
-            console.print(f"[red]✗ Quality score: {score:.2f}[/red] (threshold: {threshold:.2f})")
+        # Show score prominently
+        score = None
+        for check in result.checks:
+            if check.name == "overall_score" and check.details:
+                score = check.details.get("score")
+                break
+        if score is not None:
+            console.print(f"\n[bold]Quality Score:[/bold] {score:.2f}")
 
-        # Display warnings
-        if result["warnings"]:
-            console.print("\n[yellow]Warnings:[/yellow]")
-            for warning in result["warnings"]:
-                console.print(f"  • {warning}")
-
-        # Display details table
-        console.print("\n[cyan]Details:[/cyan]")
-        table = Table()
-        table.add_column("Category", style="cyan")
-        table.add_column("Score", style="magenta")
-        table.add_column("Status", style="green")
-
-        for category, details in result["details"].items():
-            status = "✓" if details["passed"] else "✗"
-            table.add_row(category.replace("_", " ").title(), f"{details['score']:.2f}", status)
-
-        console.print(table)
-
-        if not result["passes"]:
-            sys.exit(1)
+        _display_validation_result(result)
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        sys.exit(1)
+        sys.exit(2)
 
 
 @app.command(name="validate-transcript")
