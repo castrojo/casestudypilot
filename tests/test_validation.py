@@ -750,3 +750,38 @@ Some content here.
             assert any(c.name == "clickable_screenshot_links" for c in failed)
         finally:
             os.unlink(temp_path)
+
+class TestFromChecks:
+    """Tests for ValidationResult.from_checks classmethod."""
+
+    def test_all_passing(self):
+        from casestudypilot.validation import ValidationResult, ValidationCheck, Severity
+        checks = [
+            ValidationCheck(name="a", passed=True, severity=Severity.PASS),
+            ValidationCheck(name="b", passed=True, severity=Severity.PASS),
+        ]
+        result = ValidationResult.from_checks(checks)
+        assert result.status == Severity.PASS
+
+    def test_warning_sets_warning(self):
+        from casestudypilot.validation import ValidationResult, ValidationCheck, Severity
+        checks = [
+            ValidationCheck(name="a", passed=True, severity=Severity.PASS),
+            ValidationCheck(name="b", passed=False, severity=Severity.WARNING, message="warn"),
+        ]
+        result = ValidationResult.from_checks(checks)
+        assert result.status == Severity.WARNING
+
+    def test_critical_overrides_warning(self):
+        from casestudypilot.validation import ValidationResult, ValidationCheck, Severity
+        checks = [
+            ValidationCheck(name="a", passed=False, severity=Severity.WARNING, message="warn"),
+            ValidationCheck(name="b", passed=False, severity=Severity.CRITICAL, message="crit"),
+        ]
+        result = ValidationResult.from_checks(checks)
+        assert result.status == Severity.CRITICAL
+
+    def test_empty_checks(self):
+        from casestudypilot.validation import ValidationResult, Severity
+        result = ValidationResult.from_checks([])
+        assert result.status == Severity.PASS

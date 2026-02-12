@@ -41,6 +41,25 @@ class ValidationResult:
     status: Severity  # Highest severity from all checks
     checks: List[ValidationCheck]
 
+    @classmethod
+    def from_checks(cls, checks: List[ValidationCheck]) -> "ValidationResult":
+        """Create a ValidationResult from a list of checks, auto-determining status.
+
+        Status is the highest severity among failed checks:
+        - CRITICAL if any check failed with CRITICAL severity
+        - WARNING if any check failed with WARNING severity (and none CRITICAL)
+        - PASS if all checks passed
+        """
+        status = Severity.PASS
+        for check in checks:
+            if not check.passed:
+                if check.severity == Severity.CRITICAL:
+                    status = Severity.CRITICAL
+                    break
+                elif check.severity == Severity.WARNING and status == Severity.PASS:
+                    status = Severity.WARNING
+        return cls(status=status, checks=checks)
+
     def is_critical(self) -> bool:
         """Check if validation failed critically."""
         return self.status == Severity.CRITICAL
@@ -143,17 +162,7 @@ def validate_transcript(transcript: str, segments: List[Dict]) -> ValidationResu
             )
         )
 
-    # Determine overall status (highest severity that failed)
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 def validate_company_name(company_name: str, video_title: str, confidence: float = 1.0) -> ValidationResult:
@@ -220,16 +229,7 @@ def validate_company_name(company_name: str, video_title: str, confidence: float
         )
     )
 
-    # Determine status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL and status != Severity.CRITICAL:
-                status = Severity.CRITICAL
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 def validate_analysis(analysis: Dict[str, Any]) -> ValidationResult:
@@ -330,17 +330,7 @@ def validate_analysis(analysis: Dict[str, Any]) -> ValidationResult:
             )
         )
 
-    # Determine status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 def validate_metrics(
@@ -558,17 +548,7 @@ def validate_case_study_format(case_study_path: str) -> ValidationResult:
                 )
             )
 
-    # Determine overall status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 def validate_company_consistency(
@@ -695,17 +675,7 @@ def validate_company_consistency(
                 )
             )
 
-    # Determine status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 # =============================================================================
@@ -836,17 +806,7 @@ def validate_presenter(presenter_name: str, videos_data: Dict[str, Any]) -> Vali
             )
         )
 
-    # Determine status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 def validate_biography(biography_data: Dict[str, Any]) -> ValidationResult:
@@ -951,17 +911,7 @@ def validate_biography(biography_data: Dict[str, Any]) -> ValidationResult:
             )
         )
 
-    # Determine status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 def validate_profile_update(
@@ -1057,17 +1007,7 @@ def validate_profile_update(
             )
         )
 
-    # Determine status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
 
 
 def validate_presenter_profile(profile_data: Dict[str, Any], threshold: float = 0.60) -> ValidationResult:
@@ -1215,14 +1155,4 @@ def validate_presenter_profile(profile_data: Dict[str, Any], threshold: float = 
         )
     )
 
-    # Determine status
-    status = Severity.PASS
-    for check in checks:
-        if not check.passed:
-            if check.severity == Severity.CRITICAL:
-                status = Severity.CRITICAL
-                break
-            elif check.severity == Severity.WARNING and status == Severity.PASS:
-                status = Severity.WARNING
-
-    return ValidationResult(status=status, checks=checks)
+    return ValidationResult.from_checks(checks)
