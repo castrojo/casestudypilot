@@ -92,6 +92,16 @@
 
 ## Execution Instructions
 
+### FACT-GROUNDING RULE
+
+Diagram specifications must only include components, connections, and annotations that are grounded in the deep analysis (which itself must be grounded in the transcript). Do NOT add:
+- Components not described in the deep analysis
+- Connections or protocols not discussed by the speakers
+- Annotations with metrics or capacities not from the transcript
+- Standard architecture components "that are typically used" but were not mentioned
+
+If the deep analysis has limited component data, produce simpler diagrams rather than inventing components to make them look comprehensive.
+
 ### Step 1: Understand the Architecture from Deep Analysis
 
 **Objective:** Comprehend the full architecture before creating diagram specifications.
@@ -240,6 +250,7 @@
 - Are connection types appropriate (http vs. async)?
 - Are bidirectional flags correct?
 - Do connections match integration patterns from deep analysis?
+- **Sourcing:** Only include protocols, data volumes, and rate limits that appear in the deep analysis. If the speakers did not describe a protocol for a connection, use a generic label like "communicates with" rather than inventing "gRPC" or "HTTP/2."
 
 #### Step 2.3: Add Annotations
 
@@ -274,6 +285,7 @@
 - Are annotations concise and informative?
 - Do annotations add value (not redundant with component description)?
 - Are annotations positioned to avoid overlap?
+- **Sourcing:** Only include metrics and capacities that appear in the deep analysis with transcript quotes. Do NOT invent throughput numbers, storage sizes, or request rates.
 
 #### Step 2.4: Provide Layout Hints
 
