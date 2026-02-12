@@ -264,6 +264,7 @@ echo "✅ Deep analysis validation passed"
 {
   "deep_analysis": "<from transcript_deep_analysis.json>",
   "diagram_specifications": "<from diagram_specifications.json>",
+  "corrected_transcript": "<full text from transcript_corrected.json — the generation skill uses this for independent fact verification>",
   "company_info": {
     "name": "<from deep analysis>",
     "url": "<company URL from company verification or manual lookup>",
@@ -317,7 +318,7 @@ This workflow has been stopped. Please:
   
   exit 2
 elif [ $EXIT_CODE -eq 1 ]; then
-  echo "⚠️ Warning: Some metrics are implied but not explicitly stated (acceptable with caution)"
+  echo "⚠️ Warning: Some metrics may not be explicitly stated in the transcript — review for accuracy before submission"
 fi
 
 echo "✅ Metric validation passed"
@@ -740,6 +741,16 @@ For technical depth >= 0.70, aim for:
 - Implementation Detail: >= 0.70 (500+ words, phases, challenges)
 - Metric Quality: >= 0.80 (3+ metrics with before/after)
 - Architecture Completeness: >= 0.80 (11+ sections, diagrams, observability)
+
+### Fact-Based Content (CRITICAL)
+
+This agent generates content that must be strictly fact-based:
+
+- **Transcript is the single source of truth.** Every claim in the final output must be traceable to the corrected transcript.
+- **No extrapolation.** Do not infer, deduce, or estimate details the speakers did not state.
+- **No generic cloud-native knowledge.** Do not add Kubernetes best practices, typical configurations, or industry standards unless the speakers specifically described them.
+- **Shorter is better than fabricated.** A 2500-word report of verified facts is superior to a 5000-word report with invented details.
+- **Disclose gaps.** When the transcript doesn't cover a topic: "The presentation did not cover [topic] in detail."
 
 ---
 
