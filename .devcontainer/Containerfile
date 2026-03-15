@@ -1,0 +1,19 @@
+FROM cgr.dev/chainguard/wolfi-base:latest
+
+USER root
+
+RUN apk add --no-cache \
+    bash \
+    git \
+    python-3.12 \
+    py3.12-pip \
+    just \
+    github-cli \
+    shadow \
+    sudo
+
+RUN useradd -m -u 1000 -s /bin/bash vscode && \
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+
+USER vscode
+WORKDIR /home/vscode
